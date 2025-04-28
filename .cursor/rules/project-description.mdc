@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Project Description
+
+- This project is about spinning up a docker compose configuration with various container
+- The end goal is to have all components needed for a retrieval augmented generation project
+- Following containers are spun up:
+-- ollama with an embedding model
+-- vLLM with a large language model
+-- qdrant as the vector database
+-- flowise as a no code chat flow builder. We use a custom forked version from https://github.com/dentroai/Flowise that is almost the same as the original Flowise version
+-- langfuse for tracing chatbot interactions

@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333" # REST API
+      - "6334:6334" # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: always
+    networks:
+      - rag_network
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-false}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # Use all available GPUs, or specify a number e.g., 1
+              capabilities: [gpu]
+    command: # Pass model args here
+      - --model
+      - ${VLLM_MODEL_NAME} # Mandatory: Set in .env
+      - --max-model-len
+      - ${VLLM_MAX_MODEL_LEN:-8192} # Default max length
+      - --gpu-memory-utilization
+      - ${VLLM_GPU_MEM_UTIL:-0.9} # Default GPU memory utilization
+      - --served-model-name
+      - ${VLLM_SERVED_MODEL_NAME:-vllm-model} # Model name for OpenAI API
+    ipc: host # Necessary for multi-process communication
+    restart: always
+    networks:
+      - rag_network
+
+  ollama:
+    build:
+      context: ./ollama # Build from the local Dockerfile
+      args:
+        - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL} # Mandatory: Set in .env
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # Use all available GPUs
+              capabilities: [gpu]
+    tty: true # Keeps the container running
+    restart: always
+    networks:
+      - rag_network
+
+  flowise:
+    image: flowiseai/flowise:latest # Using official image, build from dentroai/Flowise if needed
+    container_name: flowise
+    ports:
+      - "${FLOWISE_PORT:-3000}:${FLOWISE_PORT:-3000}" # Expose Flowise port
+    volumes:
+      - flowise_data:${FLOWISE_DATABASE_PATH:-/root/.flowise} # Mount main data path
+      - flowise_data_audit:${FLOWISE_AUDIT_TRAIL_STORAGE_PATH:-/data/} # Mount audit trail path
+    environment:
+      - PORT=${FLOWISE_PORT:-3000}
+      - DATABASE_PATH=${FLOWISE_DATABASE_PATH:-/root/.flowise}
+      - APIKEY_PATH=${FLOWISE_APIKEY_PATH:-/root/.flowise}
+      - SECRETKEY_PATH=${FLOWISE_SECRETKEY_PATH:-/root/.flowise}
+      - LOG_PATH=${FLOWISE_LOG_PATH:-/root/.flowise/logs}
+      - BLOB_STORAGE_PATH=${FLOWISE_BLOB_STORAGE_PATH:-/root/.flowise/storage}
+      - FLOWISE_AUDIT_TRAIL_STORAGE_PATH=${FLOWISE_AUDIT_TRAIL_STORAGE_PATH:-/data/}
+      - DISABLE_FLOWISE_TELEMETRY=${FLOWISE_DISABLE_TELEMETRY:-true}
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+      - LANGCHAIN_TRACING_V2=${FLOWISE_LANGCHAIN_TRACING_V2}
+      - LANGCHAIN_ENDPOINT=${FLOWISE_LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_HUB_API_URL=${FLOWISE_LANGCHAIN_HUB_API_URL}
+      - LANGCHAIN_API_KEY=${FLOWISE_LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${FLOWISE_LANGCHAIN_PROJECT}
+      - CORS_ORIGINS=${FLOWISE_CORS_ORIGINS}
+      - IFRAME_ORIGINS=${FLOWISE_IFRAME_ORIGINS}
+    restart: always
+    networks:
+      - rag_network
+
+volumes:
+  qdrant_data:
+  hf_cache:
+  ollama_data:
+  flowise_data:
+  flowise_data_audit:
+
+networks:
+  rag_network:
+    driver: bridge 
