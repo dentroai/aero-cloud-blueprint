@@ -67,7 +67,8 @@ services:
       - rag_network
 
   flowise:
-    image: flowiseai/flowise:latest # Using official image, build from dentroai/Flowise if needed
+    build:
+      context: https://github.com/dentroai/Flowise.git # Build from the dentroai fork
     container_name: flowise
     ports:
       - "${FLOWISE_PORT:-3000}:${FLOWISE_PORT:-3000}" # Expose Flowise port
@@ -85,11 +86,6 @@ services:
       - DISABLE_FLOWISE_TELEMETRY=${FLOWISE_DISABLE_TELEMETRY:-true}
       - FLOWISE_USERNAME=${FLOWISE_USERNAME}
       - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
-      - LANGCHAIN_TRACING_V2=${FLOWISE_LANGCHAIN_TRACING_V2}
-      - LANGCHAIN_ENDPOINT=${FLOWISE_LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_HUB_API_URL=${FLOWISE_LANGCHAIN_HUB_API_URL}
-      - LANGCHAIN_API_KEY=${FLOWISE_LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${FLOWISE_LANGCHAIN_PROJECT}
       - CORS_ORIGINS=${FLOWISE_CORS_ORIGINS}
       - IFRAME_ORIGINS=${FLOWISE_IFRAME_ORIGINS}
     restart: always
