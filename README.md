@@ -69,7 +69,7 @@ Here are the typical settings:
 |                    |                       | `Model Name`             | `${OLLAMA_EMBEDDING_MODEL}`                   | Use the embedding model name specified in your `.env` file.         |
 | **Qdrant (Vector DB)**| `Qdrant`            | `Qdrant Server URL`      | `http://qdrant:6333`                          | Use the container name `qdrant` and port `6333`.                      |
 |                    |                       | `Collection Name`        | *Your desired collection name*                |                                                                       |
-|                    |                       | `Embedding`              | Connect your Ollama Embedding node here.      |                                                                       |
+|                    |                       | `Qdrant API Key`              | `1234XYZ` (or any other dummy value)                   | The qdrant endpoint doesn't require a key by default, but Flowise expects one.
 | **Langfuse (Tracing)**| `Langfuse`          | `Endpoint`               | `http://langfuse-web:3000`                    | Use the container name `langfuse-web` and port `3000`.                |
 |                    |                       | `Secret Key` / `Public Key`| *Get these from the Langfuse UI* ([http://localhost:3001](http://localhost:3001)) | Go to Project Settings -> API Keys in Langfuse to generate keys. |
 

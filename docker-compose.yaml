@@ -23,6 +23,7 @@ services:
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-false}
+      - CUDA_LAUNCH_BLOCKING=1
     deploy:
       resources:
         reservations:
@@ -39,6 +40,7 @@ services:
       - ${VLLM_GPU_MEM_UTIL:-0.9} # Default GPU memory utilization
       - --served-model-name
       - ${VLLM_SERVED_MODEL_NAME:-vllm-model} # Model name for OpenAI API
+      - --enforce-eager
     ipc: host # Necessary for multi-process communication
     restart: always
     networks:
