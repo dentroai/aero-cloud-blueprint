@@ -300,75 +300,50 @@ def upsert_to_qdrant(
 # --- Parallel Processing ---
 
 
-def process_document(doc_path: Path, args, qdrant_client, vector_size, stats_lock):
-    """Process a single document file including all its pages."""
-    doc_images_output_dir = Path(args.images_output) / doc_path.stem
-    doc_images_output_dir.mkdir(parents=True, exist_ok=True)
+def process_page(
+    doc_path: Path, image_path: Path, page_num: int, args, qdrant_client, vector_size
+):
+    """Process a single page of a document."""
+    logging.info(
+        f"Processing page {page_num} of document {doc_path.name} ({image_path.name})"
+    )
 
-    local_pages_processed = 0
-    local_errors = 0
+    # a. Transcribe image
+    transcription = transcribe_image_vllm(
+        image_path, args.vllm_endpoint, args.vllm_model
+    )
+    if not transcription:
+        logging.warning(f"Failed to transcribe {image_path.name}. Skipping page.")
+        return False
 
-    logging.info(f"--- Processing document: {doc_path.name} ---")
-
-    image_paths = []
-    if doc_path.suffix.lower() == ".pdf":
-        image_paths = convert_pdf_to_images(doc_path, doc_images_output_dir)
-    elif doc_path.suffix.lower() == ".docx":
-        image_paths = convert_docx_to_images(doc_path, doc_images_output_dir)
-
-    if not image_paths:
-        logging.warning(f"No images generated for {doc_path.name}. Skipping.")
-        with stats_lock:
-            return 0, 1  # 0 pages processed, 1 error
-
-    # Process each page (image)
-    for i, image_path in enumerate(image_paths):
-        page_num = i + 1
-        logging.info(
-            f"Processing page {page_num} of {len(image_paths)} for {doc_path.name} ({image_path.name})"
+    # b. Get embedding
+    embedding = get_embedding_ollama(
+        transcription, args.ollama_endpoint, args.ollama_model
+    )
+    if not embedding:
+        logging.warning(
+            f"Failed to get embedding for transcription of {image_path.name}. Skipping page."
         )
+        return False
 
-        # a. Transcribe image
-        transcription = transcribe_image_vllm(
-            image_path, args.vllm_endpoint, args.vllm_model
+    # Ensure embedding is the correct size
+    if len(embedding) != vector_size:
+        logging.warning(
+            f"Embedding size mismatch for {image_path.name} (Expected {vector_size}, Got {len(embedding)}). Skipping page."
         )
-        if not transcription:
-            logging.warning(f"Failed to transcribe {image_path.name}. Skipping page.")
-            local_errors += 1
-            continue
+        return False
 
-        # b. Get embedding
-        embedding = get_embedding_ollama(
-            transcription, args.ollama_endpoint, args.ollama_model
-        )
-        if not embedding:
-            logging.warning(
-                f"Failed to get embedding for transcription of {image_path.name}. Skipping page."
-            )
-            local_errors += 1
-            continue
-
-        # Ensure embedding is the correct size (should match sample_embedding size)
-        if len(embedding) != vector_size:
-            logging.warning(
-                f"Embedding size mismatch for {image_path.name} (Expected {vector_size}, Got {len(embedding)}). Skipping page."
-            )
-            local_errors += 1
-            continue
-
-        # c. Upsert to Qdrant
-        upsert_to_qdrant(
-            qdrant_client,
-            args.qdrant_collection,
-            doc_path,
-            page_num,
-            transcription,
-            embedding,
-        )
-        local_pages_processed += 1
-
-    logging.info(f"--- Finished processing document: {doc_path.name} ---")
-    return local_pages_processed, local_errors
+    # c. Upsert to Qdrant
+    upsert_to_qdrant(
+        qdrant_client,
+        args.qdrant_collection,
+        doc_path,
+        page_num,
+        transcription,
+        embedding,
+    )
+    logging.info(f"Successfully processed page {page_num} of {doc_path.name}")
+    return True
 
 
 # --- Main Orchestration ---
@@ -410,39 +385,68 @@ def main(args):
     processed_pages = 0
     errors_occurred = 0
 
-    # Create a lock for thread-safe updates to our statistics
-    stats_lock = Lock()
+    # 3. Process each document sequentially
+    for doc_path in documents:
+        logging.info(f"--- Starting processing document: {doc_path.name} ---")
+        doc_images_output_dir = Path(args.images_output) / doc_path.stem
+        doc_images_output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 3. Process documents in parallel with a thread pool
-    logging.info(
-        f"Processing {len(documents)} documents with a maximum of 5 in parallel"
-    )
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        # Submit all document processing tasks
-        future_to_doc = {
-            executor.submit(
-                process_document, doc, args, qdrant_client, vector_size, stats_lock
-            ): doc
-            for doc in documents
-        }
+        # Convert document to images
+        image_paths = []
+        if doc_path.suffix.lower() == ".pdf":
+            image_paths = convert_pdf_to_images(doc_path, doc_images_output_dir)
+        elif doc_path.suffix.lower() == ".docx":
+            image_paths = convert_docx_to_images(doc_path, doc_images_output_dir)
 
-        # Process results as they complete
-        for future in concurrent.futures.as_completed(future_to_doc):
-            doc = future_to_doc[future]
-            try:
-                pages_processed, errors = future.result()
-                with stats_lock:
-                    processed_pages += pages_processed
-                    errors_occurred += errors
-                    processed_files += 1
-                logging.info(
-                    f"Completed document {doc.name} ({processed_files}/{len(documents)})"
+        if not image_paths:
+            logging.warning(f"No images generated for {doc_path.name}. Skipping.")
+            errors_occurred += 1
+            continue
+
+        # 4. Process pages in parallel (5 at a time)
+        logging.info(
+            f"Processing {len(image_paths)} pages from {doc_path.name} with maximum 5 pages in parallel"
+        )
+
+        doc_pages_processed = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            # Create a list to store the futures
+            future_to_page = {}
+
+            # Submit each page for processing
+            for i, image_path in enumerate(image_paths):
+                page_num = i + 1
+                future = executor.submit(
+                    process_page,
+                    doc_path,
+                    image_path,
+                    page_num,
+                    args,
+                    qdrant_client,
+                    vector_size,
                 )
-            except Exception as e:
-                logging.error(f"Error processing document {doc.name}: {e}")
-                with stats_lock:
+                future_to_page[future] = (image_path, page_num)
+
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_page):
+                image_path, page_num = future_to_page[future]
+                try:
+                    success = future.result()
+                    if success:
+                        doc_pages_processed += 1
+                    else:
+                        errors_occurred += 1
+                except Exception as e:
+                    logging.error(
+                        f"Error processing page {page_num} of {doc_path.name}: {e}"
+                    )
                     errors_occurred += 1
-                    processed_files += 1
+
+        processed_pages += doc_pages_processed
+        processed_files += 1
+        logging.info(
+            f"--- Finished document: {doc_path.name} - Processed {doc_pages_processed} of {len(image_paths)} pages ---"
+        )
 
     end_time = time.time()
     duration = end_time - start_time
