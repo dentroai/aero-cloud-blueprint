@@ -403,9 +403,9 @@ def main(args):
             errors_occurred += 1
             continue
 
-        # 4. Process pages in parallel (5 at a time)
+        # 4. Process pages in parallel (X at a time)
         logging.info(
-            f"Processing {len(image_paths)} pages from {doc_path.name} with maximum 5 pages in parallel"
+            f"Processing {len(image_paths)} pages from {doc_path.name} with maximum 20 pages in parallel"
         )
 
         doc_pages_processed = 0
