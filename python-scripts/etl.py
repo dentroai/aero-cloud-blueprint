@@ -409,7 +409,7 @@ def main(args):
         )
 
         doc_pages_processed = 0
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
             # Create a list to store the futures
             future_to_page = {}
 
