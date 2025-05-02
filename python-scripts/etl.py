@@ -56,57 +56,58 @@ def convert_docx_to_images(docx_path: Path, output_dir: Path) -> list[Path]:
         tmpdir = Path(tmpdirname)
         temp_pdf_path = None
         try:
-            if sys.platform.startswith("linux"):
-                logging.info(f"Using LibreOffice to convert {docx_path.name} to PDF.")
-                result = subprocess.run(
-                    [
-                        "libreoffice",
-                        "--headless",
-                        "--convert-to",
-                        "pdf",
-                        str(docx_path),
-                        "--outdir",
-                        str(tmpdir),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if result.returncode != 0:
-                    logging.error(
-                        f"LibreOffice conversion failed for {docx_path.name}: {result.stderr}"
-                    )
-                    return []
-                # Find the converted PDF (LibreOffice names it based on the original)
-                pdf_name = docx_path.stem + ".pdf"
-                temp_pdf_path = tmpdir / pdf_name
+            # Try docx2pdf first (on any platform)
+            try:
+                from docx2pdf import convert as convert_docx
+
+                logging.info(f"Using docx2pdf to convert {docx_path.name} to PDF.")
+                temp_pdf_path_str = str(tmpdir / (docx_path.stem + ".pdf"))
+                convert_docx(str(docx_path), temp_pdf_path_str)
+                temp_pdf_path = Path(temp_pdf_path_str)
                 if not temp_pdf_path.exists():
                     logging.error(
-                        f"Converted PDF {temp_pdf_path} not found after LibreOffice conversion."
+                        f"Converted PDF {temp_pdf_path} not found after docx2pdf conversion."
                     )
-                    return []
-            else:
-                # Attempt using docx2pdf on non-Linux (requires separate install)
-                try:
-                    from docx2pdf import convert as convert_docx
+                    raise FileNotFoundError(f"docx2pdf did not create {temp_pdf_path}")
+            except (ImportError, Exception) as e:
+                logging.warning(f"docx2pdf failed or not installed: {e}")
 
-                    logging.info(f"Using docx2pdf to convert {docx_path.name} to PDF.")
-                    temp_pdf_path_str = str(tmpdir / (docx_path.stem + ".pdf"))
-                    convert_docx(str(docx_path), temp_pdf_path_str)
-                    temp_pdf_path = Path(temp_pdf_path_str)
-                    if not temp_pdf_path.exists():
+                # Fallback to LibreOffice if available
+                if sys.platform.startswith("linux"):
+                    logging.info(
+                        f"Trying LibreOffice to convert {docx_path.name} to PDF."
+                    )
+                    result = subprocess.run(
+                        [
+                            "libreoffice",
+                            "--headless",
+                            "--convert-to",
+                            "pdf",
+                            str(docx_path),
+                            "--outdir",
+                            str(tmpdir),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    if result.returncode != 0:
                         logging.error(
-                            f"Converted PDF {temp_pdf_path} not found after docx2pdf conversion."
+                            f"LibreOffice conversion failed for {docx_path.name}: {result.stderr}"
                         )
                         return []
-                except ImportError:
+
+                    # Find the converted PDF (LibreOffice names it based on the original)
+                    pdf_name = docx_path.stem + ".pdf"
+                    temp_pdf_path = tmpdir / pdf_name
+                    if not temp_pdf_path.exists():
+                        logging.error(
+                            f"Converted PDF {temp_pdf_path} not found after LibreOffice conversion."
+                        )
+                        return []
+                else:
                     logging.error(
-                        "docx2pdf is not installed. Cannot convert DOCX on non-Linux without LibreOffice or docx2pdf."
-                    )
-                    return []
-                except Exception as e:
-                    logging.error(
-                        f"Error converting DOCX {docx_path.name} to PDF using docx2pdf: {e}"
+                        "No available method to convert DOCX to PDF. Please install docx2pdf or use LibreOffice."
                     )
                     return []
 

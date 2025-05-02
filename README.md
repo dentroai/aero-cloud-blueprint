@@ -84,6 +84,22 @@ Here are the typical settings:
     *   **Custom Feature (Audit Trail)**: This fork has a modification compared to the standard Flowise. Each time you save a chatflow in the UI, besides saving to the main database, it also saves a JSON representation of the flow to a dedicated volume. These JSON files are stored in a folder named after the chatflow's ID, and the filename is the UTC timestamp of when the save occurred (e.g., `/data/<flow-id>/<timestamp>.json`). This serves as an audit trail or version history of your flows. The base path for this storage inside the container is defined by the `FLOWISE_AUDIT_TRAIL_STORAGE_PATH` environment variable (defaulting to `/data/`) and is mapped to the `flowise_data_audit` Docker volume.
 *   **Langfuse**: An open-source observability and analytics platform for LLM applications. It provides detailed tracing of your Flowise interactions. It consists of several containers (`langfuse-web`, `langfuse-worker`, `postgres`, `redis`, `clickhouse`, `minio`) for its backend, database, cache, analytics DB, and object storage. Data is persisted in `langfuse_*` volumes.
 
+## Document Processing Pipeline
+
+The repository includes a document processing pipeline script to help you ingest documents into your RAG system:
+
+```bash
+cd python-scripts
+python3 etl.py \
+    --docs-folder "../documents/" \
+    --images-output "../documents/tmp/" \
+    --vllm-model "Qwen/Qwen2.5-VL-72B-Instruct-AWQ" \
+    --ollama-model "snowflake-arctic-embed2" \
+    --qdrant-collection "document_embeddings"
+```
+
+This script processes documents from the specified folder, generates embeddings using the configured models, and stores them in the Qdrant vector database for later retrieval.
+
 ## Managing the Services
 
 *   **View Logs**: `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml logs -f [service_name]` (e.g., `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml logs -f vllm`). Omit `[service_name]` to see logs for all services.
