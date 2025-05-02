@@ -24,6 +24,7 @@ services:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-false}
       - CUDA_LAUNCH_BLOCKING=1
+      - MODEL_ID=${VLLM_MODEL_NAME} # Added for clarity in the command
     deploy:
       resources:
         reservations:
@@ -41,6 +42,10 @@ services:
       - --served-model-name
       - ${VLLM_SERVED_MODEL_NAME:-vllm-model} # Model name for OpenAI API
       - --enforce-eager
+      - --tool-call-parser
+      - hermes
+      - --chat-template
+      - examples/tool_chat_template_hermes.jinja
     ipc: host # Necessary for multi-process communication
     restart: always
     networks:
