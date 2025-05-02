@@ -42,10 +42,10 @@ services:
       - --served-model-name
       - ${VLLM_SERVED_MODEL_NAME:-vllm-model} # Model name for OpenAI API
       - --enforce-eager
-      - --tool-call-parser
-      - hermes
-      - --chat-template
-      - examples/tool_chat_template_hermes.jinja
+      # - --tool-call-parser
+      # - hermes
+      # - --chat-template
+      # - examples/tool_chat_template_hermes.jinja
     ipc: host # Necessary for multi-process communication
     restart: always
     networks:
