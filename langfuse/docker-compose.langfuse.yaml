@@ -8,7 +8,7 @@ services:
     image: langfuse/langfuse-worker:3
     restart: always
     depends_on: &langfuse-depends-on
-      postgres:
+      langfuse_postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -19,7 +19,7 @@ services:
     ports:
       - 127.0.0.1:3030:3030
     environment: &langfuse-worker-env
-      DATABASE_URL: postgresql://postgres:${LANGFUSE_DB_PASSWORD:-postgres}@postgres:5432/postgres # CHANGEME
+      DATABASE_URL: postgresql://postgres:${LANGFUSE_DB_PASSWORD:-postgres}@langfuse_postgres:5432/postgres # CHANGED: @postgres to @langfuse_postgres
       SALT: ${LANGFUSE_SALT:-"mysalt"} # CHANGEME
       ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-"0000000000000000000000000000000000000000000000000000000000000000"} # CHANGEME: generate via `openssl rand -hex 32`
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
@@ -146,8 +146,9 @@ services:
     networks:
       - rag_network
 
-  postgres:
+  langfuse_postgres:
     image: postgres:${POSTGRES_VERSION:-latest}
+    container_name: langfuse_postgres
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -159,7 +160,7 @@ services:
       POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD:-postgres} # CHANGEME
       POSTGRES_DB: postgres
     ports:
-      - 127.0.0.1:5432:5432
+      - 127.0.0.1:5434:5432
     volumes:
       - langfuse_postgres_data:/var/lib/postgresql/data
     networks:

@@ -1,4 +1,8 @@
 pdf2image
 docx2pdf
 requests
-qdrant_client
+easyocr
+backports.lzma
+pgvector
+sqlalchemy
+psycopg2-binary

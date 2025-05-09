@@ -1,14 +1,18 @@
 version: '3.8'
 
 services:
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: qdrant
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres
     ports:
-      - "6333:6333" # REST API
-      - "6334:6334" # gRPC API
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - qdrant_data:/qdrant/storage
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-rag_db}
+      - POSTGRES_USER=${POSTGRES_USER:-rag_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     restart: always
     networks:
       - rag_network
@@ -100,7 +104,7 @@ services:
       - rag_network
 
 volumes:
-  qdrant_data:
+  postgres_data:
   hf_cache:
   ollama_data:
   flowise_data:

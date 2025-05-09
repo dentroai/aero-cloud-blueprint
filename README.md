@@ -6,7 +6,7 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
 
 - **vLLM**: Large language model server
 - **Ollama**: Embedding model server
-- **Qdrant**: Vector database
+- **PostgreSQL with pgvector**: Vector database
 - **Flowise**: No-code chat flow builder (custom fork)
 - **Langfuse**: Tracing for chatbot interactions
 
@@ -38,6 +38,7 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
      - **Recommendation:** Consider using models quantized with the **AWQ** (Activation-aware Weight Quantization) method (like the Qwen example above) as they offer a good balance between performance and reduced VRAM/disk space requirements compared to their unquantized counterparts. Search for `[model-name]-awq` on Hugging Face.
      - **Note:** The required VRAM also depends significantly on the `VLLM_MAX_MODEL_LEN` (context window size) set in your `.env` file. Larger context windows require more VRAM.
    - **Required:** Set a secure `FLOWISE_USERNAME` and `FLOWISE_PASSWORD` for accessing the Flowise UI.
+   - **Required:** Set `POSTGRES_PASSWORD` for the main RAG PostgreSQL database.
    - **Recommended:** Review and change the default `LANGFUSE_*` passwords and secrets in the `.env` file, especially `LANGFUSE_DB_PASSWORD`, `LANGFUSE_SALT`, `LANGFUSE_ENCRYPTION_KEY`, `LANGFUSE_CLICKHOUSE_PASSWORD`, `LANGFUSE_MINIO_PASSWORD`, `LANGFUSE_REDIS_PASSWORD`, and `LANGFUSE_NEXTAUTH_SECRET`. Generate a secure `LANGFUSE_ENCRYPTION_KEY` using `openssl rand -hex 32`.
 
 3. **Start the services**:
@@ -51,8 +52,8 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    Once the containers are running, you can access the web interfaces:
    - **Flowise**: [http://localhost:3000](http://localhost:3000) (Use the username and password you set in `.env`)
    - **Langfuse**: [http://localhost:3001](http://localhost:3001)
-   - **Qdrant UI (Optional)**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
-   - **Minio UI (Optional)**: [http://localhost:9090](http://localhost:9090) (Login with user `minio` and the `LANGFUSE_MINIO_PASSWORD` from `.env`)
+   - **Minio UI (Optional, used by Langfuse)**: [http://localhost:9090](http://localhost:9090) (Login with user `minio` and the `LANGFUSE_MINIO_PASSWORD` from `.env`)
+   - You can connect to the main RAG PostgreSQL database (service name `postgres`) using a PostgreSQL client on `localhost:5432` (or the `POSTGRES_PORT` you set) with the credentials from your `.env` file.
 
 ## Connecting Services in Flowise
 
@@ -67,38 +68,49 @@ Here are the typical settings:
 |                    |                       | `OpenAI API Key`         | `1234XYZ` (or any other dummy value)                   | The vLLM OpenAI endpoint doesn't require a key by default, but Flowise expects one.          |
 | **Ollama (Embeddings)**| `Ollama Embeddings` | `Base URL`               | `http://ollama:11434`                         | Use the container name `ollama` and port `11434`.                     |
 |                    |                       | `Model Name`             | `${OLLAMA_EMBEDDING_MODEL}`                   | Use the embedding model name specified in your `.env` file.         |
-| **Qdrant (Vector DB)**| `Qdrant`            | `Qdrant Server URL`      | `http://qdrant:6333`                          | Use the container name `qdrant` and port `6333`.                      |
-|                    |                       | `Collection Name`        | *Your desired collection name*                |                                                                       |
-|                    |                       | `Qdrant API Key`              | `1234XYZ` (or any other dummy value)                   | The qdrant endpoint doesn't require a key by default, but Flowise expects one.
+| **PostgreSQL (Vector DB)**| `PostgreSQL (Vector Store)` | `Postgres Connection String` | `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}` | Use service name `postgres`. Ensure credentials match your `.env`. |
+|                    |                       | `Table Name`             | `document_chunks`                             | This is the default table name used by the ETL script.              |
+|                    |                       | `Content Column Name`    | `text`                                        |                                                                       |
+|                    |                       | `Embedding Column Name`  | `embedding`                                   |                                                                       |
+|                    |                       | `Metadata Column Name(s)`| `file_name, page_number, file_path` (comma-separated) | Add other metadata columns as needed.                               |
 | **Langfuse (Tracing)**| `Langfuse`          | `Endpoint`               | `http://langfuse-web:3000`                    | Use the container name `langfuse-web` and port `3000`.                |
 |                    |                       | `Secret Key` / `Public Key`| *Get these from the Langfuse UI* ([http://localhost:3001](http://localhost:3001)) | Go to Project Settings -> API Keys in Langfuse to generate keys. |
 
-**Important:** When using these URLs within Flowise, Docker's internal networking resolves the service names (like `vllm`, `ollama`, `qdrant`, `langfuse-web`) to the correct container IP addresses. Do not use `localhost` for these internal connections.
+**Important:** When using these URLs within Flowise, Docker's internal networking resolves the service names (like `vllm`, `ollama`, `postgres`, `langfuse-web`) to the correct container IP addresses. Do not use `localhost` for these internal connections.
 
 ## Component Details
 
 *   **vLLM**: High-throughput LLM serving engine using the OpenAI API format. Configuration is managed via the `.env` file (`VLLM_*` variables). Runs on GPU. The VRAM needed depends heavily on the chosen model size and the configured maximum context length (`VLLM_MAX_MODEL_LEN`).
-*   **Ollama**: Serves embedding models (and can also serve LLMs, though vLLM is used here for the main LLM). The Dockerfile pre-pulls the embedding model specified in `.env` (`OLLAMA_EMBEDDING_MODEL`). You can change this to any other model available in the [Ollama Library](https://ollama.com/library). **Crucially**, ensure you use the *same* embedding model when adding data to Qdrant (indexing/upserting) and when querying it later in your Flowise flow.
-*   **Qdrant**: Fast vector database for storing and searching embeddings generated by Ollama. Data is persisted in the `qdrant_data` volume.
+*   **Ollama**: Serves embedding models (and can also serve LLMs, though vLLM is used here for the main LLM). The Dockerfile pre-pulls the embedding model specified in `.env` (`OLLAMA_EMBEDDING_MODEL`). You can change this to any other model available in the [Ollama Library](https://ollama.com/library). **Crucially**, ensure you use the *same* embedding model when adding data to PostgreSQL (indexing/upserting) and when querying it later in your Flowise flow.
+*   **PostgreSQL with pgvector**: A powerful relational database extended with `pgvector` for storing and searching embeddings generated by Ollama. Data is persisted in the `postgres_data` volume. The ETL script creates a table named `document_chunks`.
 *   **Flowise**: A visual tool for building RAG applications. This setup uses a specific fork (`dentroai/Flowise`). Configuration and data are stored in `flowise_data*` volumes.
     *   **Custom Feature (Audit Trail)**: This fork has a modification compared to the standard Flowise. Each time you save a chatflow in the UI, besides saving to the main database, it also saves a JSON representation of the flow to a dedicated volume. These JSON files are stored in a folder named after the chatflow's ID, and the filename is the UTC timestamp of when the save occurred (e.g., `/data/<flow-id>/<timestamp>.json`). This serves as an audit trail or version history of your flows. The base path for this storage inside the container is defined by the `FLOWISE_AUDIT_TRAIL_STORAGE_PATH` environment variable (defaulting to `/data/`) and is mapped to the `flowise_data_audit` Docker volume.
-*   **Langfuse**: An open-source observability and analytics platform for LLM applications. It provides detailed tracing of your Flowise interactions. It consists of several containers (`langfuse-web`, `langfuse-worker`, `postgres`, `redis`, `clickhouse`, `minio`) for its backend, database, cache, analytics DB, and object storage. Data is persisted in `langfuse_*` volumes.
+*   **Langfuse**: An open-source observability and analytics platform for LLM applications. It provides detailed tracing of your Flowise interactions. It consists of several containers (`langfuse-web`, `langfuse-worker`, `langfuse_postgres`, `redis`, `clickhouse`, `minio`) for its backend, database, cache, analytics DB, and object storage. Data is persisted in `langfuse_*` volumes.
 
 ## Document Processing Pipeline
 
 The repository includes a document processing pipeline script to help you ingest documents into your RAG system:
 
 ```bash
+# Ensure your .env file has POSTGRES_PASSWORD set, or set it in your environment:
+# export POSTGRES_PASSWORD="your_postgres_password_here"
+
 cd python-scripts
 python3 etl.py \
     --docs-folder "../documents/" \
     --images-output "../documents/tmp/" \
-    --vllm-model "Qwen/Qwen2.5-VL-72B-Instruct-AWQ" \
     --ollama-model "snowflake-arctic-embed2" \
-    --qdrant-collection "document_embeddings"
+    --postgres-host "localhost" \
+    --postgres-port 5432 \
+    --postgres-db "rag_db" \
+    --postgres-user "rag_user" \
+    --postgres-password "your_strong_postgres_password" \
+    --ocr-language "de" \
+    --max-workers 1
 ```
 
-This script processes documents from the specified folder, generates embeddings using the configured models, and stores them in the Qdrant vector database for later retrieval.
+This script processes documents from the specified folder, generates embeddings using the configured models, and stores them (along with the page text and image) in the PostgreSQL database for later retrieval. 
+The script will use the `POSTGRES_PASSWORD` from your environment or the `.env` file. Other PostgreSQL connection parameters default to the values expected when running alongside the Docker setup (e.g., host `postgres`). You can override them with CLI arguments if needed.
 
 ## Managing the Services
 
