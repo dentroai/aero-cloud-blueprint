@@ -2,19 +2,19 @@
 
 -- Ensure the pgvector extension is enabled (idempotent)
 -- This might be redundant if your init-pgvector.sql already does it,
--- but it's safe to include.
+-- but it's safe to include. Also ensure uuid-ossp is available if using UUID defaults.
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- For uuid_generate_v4() if we want DB default
 
 -- Create the 'documents' table that Flowise expects
--- Note: id is TEXT for UUIDs, doc_metadata is JSONB
+-- Aligning with Flowise's auto-created 'documents_docstore'
 -- YOUR_VECTOR_SIZE should be replaced with the actual dimension, e.g., 1024
 CREATE TABLE IF NOT EXISTS documents (
-  id TEXT PRIMARY KEY,
-  content TEXT,
-  doc_metadata JSONB,
-  embedding VECTOR(1024), -- Replace 1024 with your actual embedding dimension
-  image_data BYTEA,       -- Added image_data column
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) -- Added timestamp column
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Changed to UUID, added default
+  "pageContent" TEXT, -- Changed column name to pageContent (quoted for case sensitivity if needed, though likely not here)
+  metadata JSONB, -- Kept as metadata, Flowise uses this
+  embedding VECTOR(1024) -- Replace 1024 with your actual embedding dimension. Kept explicit dimension.
+  -- Removed image_data and timestamp to simplify and match Flowise's table
 );
 
 -- Create the 'match_documents' function that Flowise uses for searching
@@ -24,9 +24,9 @@ CREATE OR REPLACE FUNCTION match_documents (
   match_count INT DEFAULT 5,
   filter JSONB DEFAULT '{}'
 ) RETURNS TABLE (
-  id TEXT,
-  content TEXT,
-  doc_metadata JSONB,
+  id UUID, -- Changed to UUID
+  "pageContent" TEXT, -- Changed column name
+  metadata JSONB,
   similarity FLOAT
 )
 LANGUAGE plpgsql
@@ -36,11 +36,11 @@ BEGIN
   RETURN QUERY
   SELECT
     d.id,
-    d.content,
-    d.doc_metadata,
+    d."pageContent", -- Changed column name
+    d.metadata,
     1 - (d.embedding <=> query_embedding) AS similarity
   FROM documents AS d
-  WHERE (filter IS NULL OR d.doc_metadata @> filter)
+  WHERE (filter IS NULL OR d.metadata @> filter)
   ORDER BY d.embedding <=> query_embedding
   LIMIT match_count;
 END;

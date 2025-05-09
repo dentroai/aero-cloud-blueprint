@@ -32,7 +32,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, Session as DBSession
 from sqlalchemy.ext.declarative import declarative_base
 from pgvector.sqlalchemy import Vector
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 # Configure logging
 logging.basicConfig(
@@ -76,16 +76,10 @@ def define_document_chunk_model(vector_size: int):
     class FlowiseDocument(Base):
         __tablename__ = "documents"
 
-        id = Column(String, primary_key=True, index=True)
-        content = Column(Text, nullable=False)
-        doc_metadata = Column(JSONB, nullable=True)
+        id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+        pageContent = Column("pageContent", Text, nullable=False)
+        doc_metadata = Column("metadata", JSONB, nullable=True)
         embedding = Column(Vector(vector_size), nullable=False)
-        image_data = Column(LargeBinary, nullable=True)
-        timestamp = Column(
-            DateTime(timezone=True),
-            default=lambda: datetime.datetime.now(datetime.UTC),
-            onupdate=lambda: datetime.datetime.now(datetime.UTC),
-        )
 
         def __repr__(self):
             return (
@@ -550,20 +544,18 @@ def upsert_to_postgres(
             logging.debug(
                 f"Updating existing document chunk {point_id} for {doc_path.name} page {page_num}"
             )
-            existing_chunk.content = transcription
+            existing_chunk.pageContent = transcription
             existing_chunk.embedding = embedding_vector
             existing_chunk.doc_metadata = page_doc_metadata
-            existing_chunk.image_data = image_bytes
         else:
             logging.debug(
                 f"Inserting new document chunk {point_id} for {doc_path.name} page {page_num}"
             )
             new_chunk = DocumentChunk(
                 id=point_id,
-                content=transcription,
+                pageContent=transcription,
                 embedding=embedding_vector,
                 doc_metadata=page_doc_metadata,
-                image_data=image_bytes,
             )
             db.add(new_chunk)
 
