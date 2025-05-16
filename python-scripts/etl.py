@@ -17,6 +17,8 @@ import easyocr
 import re
 import math
 import datetime
+import io
+from PIL import Image
 
 # SQLAlchemy and pgvector imports
 from sqlalchemy import (
@@ -43,6 +45,20 @@ logging.basicConfig(
 reader_lock = Lock()
 ocr_readers = {}
 
+# Add this after imports
+MIME_TYPE_MAP = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+}
+
+# --- Configuration Constants (Add this new constant) ---
+MAX_IMAGE_DIMENSION_ETL = 1024  # Max dimension for stored images (longest side)
+TARGET_IMAGE_FORMAT_FOR_STORAGE = "JPEG"  # e.g., JPEG, PNG
+TARGET_IMAGE_QUALITY = 85  # For JPEG, 1-95 (higher is better quality, larger size)
+
 # --- SQLAlchemy Setup ---
 Base = declarative_base()
 engine = None
@@ -52,25 +68,39 @@ SessionLocal = None
 DocumentChunk = None
 
 
-def define_document_chunk_model(vector_size: int):
+def define_document_chunk_model(text_vector_size: int, image_vector_size: int | None):
     """
     Dynamically defines the DocumentChunk SQLAlchemy model class,
-    aligning with Flowise's expected 'documents' table structure.
+    aligning with Flowise's expected 'documents' table structure,
+    and adding fields for image embedding and image data.
     """
     global DocumentChunk
+    # Check if model needs redefinition (e.g., different vector sizes)
+    # This check is simplified; a more robust check would compare all relevant attributes.
     if (
         DocumentChunk is not None
         and hasattr(DocumentChunk.embedding.type, "dim")
-        and DocumentChunk.embedding.type.dim == vector_size
+        and DocumentChunk.embedding.type.dim == text_vector_size
+        and (
+            (
+                image_vector_size is None
+                and not hasattr(DocumentChunk, "image_embedding")
+            )
+            or (
+                image_vector_size is not None
+                and hasattr(DocumentChunk, "image_embedding")
+                and DocumentChunk.image_embedding.type.dim == image_vector_size
+            )
+        )
         and DocumentChunk.__tablename__ == "documents"
     ):
         logging.debug(
-            f"DocumentChunk model (as 'documents') already defined with vector size {vector_size}."
+            f"DocumentChunk model (as 'documents') already defined with text vector size {text_vector_size} and image vector size {image_vector_size}."
         )
         return DocumentChunk
 
     logging.info(
-        f"Defining DocumentChunk model (as 'documents') with vector size {vector_size}."
+        f"Defining DocumentChunk model (as 'documents') with text vector size {text_vector_size} and image vector size {image_vector_size}."
     )
 
     class FlowiseDocument(Base):
@@ -79,7 +109,15 @@ def define_document_chunk_model(vector_size: int):
         id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
         pageContent = Column("pageContent", Text, nullable=False)
         doc_metadata = Column("metadata", JSONB, nullable=True)
-        embedding = Column(Vector(vector_size), nullable=False)
+        embedding = Column(Vector(text_vector_size), nullable=False)  # Text embedding
+        if image_vector_size is not None:
+            image_embedding = Column(
+                Vector(image_vector_size), nullable=True
+            )  # Image embedding
+        image_data = Column(LargeBinary, nullable=True)  # Raw image data
+
+        # Add a unique constraint on 'id' if not already implied by primary_key, though it usually is.
+        # __table_args__ = (UniqueConstraint('id', name='uq_documents_id'),)
 
         def __repr__(self):
             return (
@@ -450,31 +488,207 @@ def transcribe_image_easyocr(image_path: Path, language: str) -> str:
 # --- AI Model Interactions ---
 
 
-def get_embedding_ollama(
-    text: str, ollama_endpoint: str, model_name: str
+def get_embedding_vllm_text(
+    text: str, vllm_endpoint: str, model_name: str
 ) -> list[float] | None:
-    """Gets text embedding from an Ollama API endpoint."""
+    """Gets text embedding from a vLLM OpenAI-compatible API endpoint."""
     logging.debug(
-        f"Getting embedding for text snippet (length: {len(text)}) using Ollama model {model_name}"
+        f"Getting text embedding for snippet (length: {len(text)}) using vLLM model {model_name} at {vllm_endpoint}"
     )
-    api_url = f"{ollama_endpoint.rstrip('/')}/api/embeddings"  # Corrected endpoint
-    payload = {"model": model_name, "prompt": text}  # Use 'prompt' for embeddings
+    # Assuming vLLM endpoint is like "http://host:port/v1" and we need "/embeddings"
+    api_url = f"{vllm_endpoint.rstrip('/')}/embeddings"
+    payload = {"input": text, "model": model_name}
 
     try:
-        response = requests.post(api_url, json=payload, timeout=60)
+        response = requests.post(
+            api_url, json=payload, timeout=120
+        )  # Increased timeout for potentially larger models/payloads
         response.raise_for_status()
         data = response.json()
-        if "embedding" in data and isinstance(data["embedding"], list):
-            return data["embedding"]
+        if (
+            "data" in data
+            and isinstance(data["data"], list)
+            and len(data["data"]) > 0
+            and "embedding" in data["data"][0]
+            and isinstance(data["data"][0]["embedding"], list)
+        ):
+            return data["data"][0]["embedding"]
         else:
             logging.error(
-                f"Ollama embedding response missing 'embedding' key or not a list. Keys: {list(data.keys())}"
+                f"vLLM text embedding response missing 'data[0].embedding' or not a list. Response: {data}"
             )
             return None
     except requests.exceptions.RequestException as e:
-        logging.error(f"Error calling Ollama embedding API at {api_url}: {e}")
+        logging.error(f"Error calling vLLM text embedding API at {api_url}: {e}")
+        logging.error(
+            f"Response content: {response.content if 'response' in locals() and hasattr(response, 'content') else 'N/A'}"
+        )
     except Exception as e:
-        logging.error(f"An unexpected error occurred during embedding: {e}")
+        logging.error(f"An unexpected error occurred during vLLM text embedding: {e}")
+    return None
+
+
+def get_mime_type(image_path):
+    """Determines the MIME type of an image based on its extension."""
+    ext = Path(image_path).suffix
+    return MIME_TYPE_MAP.get(ext.lower())
+
+
+def resize_and_format_image_bytes(
+    image_bytes: bytes,
+    max_dimension: int,
+    target_format: str = "JPEG",
+    target_quality: int = 85,
+) -> bytes | None:
+    """
+    Resizes image bytes if dimensions exceed max_dimension, converts to target_format,
+    and returns new image bytes.
+    """
+    if not image_bytes:
+        return None
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        original_size = img.size
+        original_mode = img.mode
+
+        # Resize if necessary
+        if max(img.width, img.height) > max_dimension:
+            img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+            logging.debug(
+                f"Resized image from {original_size} to {img.size} (max_dim: {max_dimension})"
+            )
+
+        # Handle image mode and transparency for target format
+        # Convert to RGB if it's RGBA or P (palette) for JPEG, or if it's an unusual mode for PNG
+        if target_format == "JPEG":
+            if img.mode == "RGBA" or img.mode == "P":
+                img = img.convert("RGB")
+        elif target_format == "PNG":
+            # PNG can handle RGB, RGBA, L, P. If it's something else, convert to RGB/RGBA.
+            if img.mode not in ("RGB", "RGBA", "L", "P"):
+                img = img.convert(
+                    "RGBA" if "A" in original_mode else "RGB"
+                )  # Preserve alpha if original had it and PNG supports it
+
+        # Save to buffer in the target format
+        buffered = io.BytesIO()
+        save_kwargs = {}
+        if target_format == "JPEG":
+            save_kwargs["quality"] = target_quality
+            save_kwargs["optimize"] = True  # Try to optimize JPEG size
+
+        img.save(buffered, format=target_format, **save_kwargs)
+        processed_bytes = buffered.getvalue()
+        logging.debug(
+            f"Formatted image to {target_format}. Original size: {len(image_bytes)}, New size: {len(processed_bytes)}"
+        )
+        return processed_bytes
+
+    except Exception as e:
+        logging.error(f"Error processing image bytes for resizing/formatting: {e}")
+        return image_bytes  # Return original bytes on error to avoid losing the image entirely
+
+
+def get_embedding_vllm_image(
+    image_bytes: bytes,
+    vllm_endpoint: str,
+    model_name: str,
+    image_format: str = ".png",
+) -> list[float] | None:
+    """
+    Get an IMAGE embedding from vLLM.
+
+    The image model expects the OpenAI-style "messages" payload (image_url +
+    short text) but is served on the normal /v1/embeddings route.
+    """
+    logging.debug(
+        f"Requesting image embedding (size {len(image_bytes)} bytes) from {vllm_endpoint} using model {model_name}"
+    )
+
+    # ------------------------------------------------------------------ #
+    # Build data-URI                                                      #
+    # ------------------------------------------------------------------ #
+    try:
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+    except Exception as e:
+        logging.error(f"Base64-encoding failed: {e}")
+        return None
+
+    mime = MIME_TYPE_MAP.get(image_format.lower(), "image/png")
+    data_url = f"data:{mime};base64,{b64}"
+
+    # ------------------------------------------------------------------ #
+    # Endpoint – make sure we actually hit  …/v1/embeddings               #
+    # ------------------------------------------------------------------ #
+    if vllm_endpoint.endswith("/v1/embeddings"):
+        api_url = vllm_endpoint
+    elif vllm_endpoint.endswith("/v1"):
+        api_url = f"{vllm_endpoint}/embeddings"
+    else:
+        api_url = f"{vllm_endpoint.rstrip('/')}/v1/embeddings"
+
+    # ------------------------------------------------------------------ #
+    # Payload in "messages" format (same as working PoC)                  #
+    # ------------------------------------------------------------------ #
+    payload = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                    {"type": "text", "text": "Generate an embedding for this image."},
+                ],
+            }
+        ],
+        "encoding_format": "float",
+    }
+
+    try:
+        resp = requests.post(api_url, json=payload, timeout=180)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # Error handling ------------------------------------------------
+        if data.get("object") == "error" or "error" in data:
+            msg = data.get("message") or data.get("error", {}).get("message")
+            logging.error(f"vLLM image-embedding API error: {msg}")
+            return None
+
+        # Success path --------------------------------------------------
+        if (
+            "data" in data
+            and isinstance(data["data"], list)
+            and data["data"]
+            and "embedding" in data["data"][0]
+        ):
+            embedding_result = data["data"][0]["embedding"]
+            logging.info(
+                f"Successfully generated image embedding from vLLM model {model_name}. Vector size: {len(embedding_result)}"
+            )
+            return embedding_result
+
+        # Fallbacks (rare) ---------------------------------------------
+        if "embedding" in data:  # some models
+            embedding_result = data["embedding"]
+            logging.info(
+                f"Successfully generated image embedding (fallback path) from vLLM model {model_name}. Vector size: {len(embedding_result)}"
+            )
+            return embedding_result
+        if isinstance(data, list):  # raw list of floats
+            logging.info(
+                f"Successfully generated image embedding (raw list fallback) from vLLM model {model_name}. Vector size: {len(data)}"
+            )
+            return data
+
+        logging.error(f"Unexpected embedding response shape: {data}")
+        return None
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"HTTP error from vLLM image-embedding API: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error in image-embedding helper: {e}")
+
     return None
 
 
@@ -508,7 +722,8 @@ def upsert_to_postgres(
     doc_path: Path,
     page_num: int,
     transcription: str,
-    embedding_vector: list[float],
+    text_embedding_vector: list[float],
+    image_embedding_vector: list[float] | None,
     image_bytes: bytes | None,
 ):
     """Upserts the document page data to PostgreSQL into the 'documents' table."""
@@ -519,9 +734,9 @@ def upsert_to_postgres(
         )
         return
 
-    if not embedding_vector:
+    if not text_embedding_vector:
         logging.warning(
-            f"Skipping upsert for {doc_path.name} page {page_num} due to missing embedding."
+            f"Skipping upsert for {doc_path.name} page {page_num} due to missing text embedding."
         )
         return
 
@@ -545,24 +760,51 @@ def upsert_to_postgres(
                 f"Updating existing document chunk {point_id} for {doc_path.name} page {page_num}"
             )
             existing_chunk.pageContent = transcription
-            existing_chunk.embedding = embedding_vector
+            existing_chunk.embedding = text_embedding_vector
             existing_chunk.doc_metadata = page_doc_metadata
+            if hasattr(existing_chunk, "image_embedding"):
+                existing_chunk.image_embedding = image_embedding_vector
+            if hasattr(existing_chunk, "image_data"):
+                existing_chunk.image_data = image_bytes
         else:
             logging.debug(
                 f"Inserting new document chunk {point_id} for {doc_path.name} page {page_num}"
             )
-            new_chunk = DocumentChunk(
-                id=point_id,
-                pageContent=transcription,
-                embedding=embedding_vector,
-                doc_metadata=page_doc_metadata,
-            )
+            chunk_data = {
+                "id": point_id,
+                "pageContent": transcription,
+                "embedding": text_embedding_vector,
+                "doc_metadata": page_doc_metadata,
+            }
+            if image_embedding_vector is not None and hasattr(
+                DocumentChunk, "image_embedding"
+            ):
+                chunk_data["image_embedding"] = image_embedding_vector
+            if image_bytes is not None and hasattr(DocumentChunk, "image_data"):
+                chunk_data["image_data"] = image_bytes
+
+            new_chunk = DocumentChunk(**chunk_data)
             db.add(new_chunk)
 
         db.commit()
         logging.debug(
             f"Successfully upserted document chunk {point_id} for {doc_path.name} page {page_num}"
         )
+        # Add a more specific info log
+        log_message_parts = [
+            f"Stored page {page_num} of '{doc_path.name}' to PostgreSQL:"
+        ]
+        if text_embedding_vector:
+            log_message_parts.append("Text embedding (yes)")
+        if image_embedding_vector:
+            log_message_parts.append("Image embedding (yes)")
+        else:
+            log_message_parts.append("Image embedding (no)")
+        if image_bytes:
+            log_message_parts.append("Raw image data (yes)")
+        else:
+            log_message_parts.append("Raw image data (no)")
+        logging.info(" ".join(log_message_parts))
 
     except Exception as e:
         db.rollback()
@@ -580,60 +822,108 @@ def process_page(
     page_num: int,
     args,
     db_session_factory,
-    vector_size,
+    text_vector_size: int,
+    image_vector_size: int | None,
 ):
     """Process a single page of a document."""
     logging.info(
         f"Processing page {page_num} of document {doc_path.name} ({image_path.name})"
     )
 
-    db = None  # Initialize db to None for the finally block
+    db = None
     try:
-        db = db_session_factory()  # Create a new session for this thread/task
+        db = db_session_factory()
 
-        # a. Transcribe image using easyOCR
         transcription = transcribe_image_easyocr(image_path, args.ocr_language)
         if not transcription:
             logging.warning(f"Failed to transcribe {image_path.name}. Skipping page.")
             return False
 
-        # b. Get embedding
-        embedding = get_embedding_ollama(
-            transcription, args.ollama_endpoint, args.ollama_model
+        text_embedding = get_embedding_vllm_text(
+            transcription,
+            args.vllm_text_embedding_endpoint,
+            args.vllm_text_embedding_model,
         )
-        if not embedding:
+        if not text_embedding:
             logging.warning(
-                f"Failed to get embedding for transcription of {image_path.name}. Skipping page."
+                f"Failed to get text embedding for transcription of {image_path.name}. Skipping page."
             )
             return False
 
-        # c. Read image file into bytes
-        image_bytes = None
+        if len(text_embedding) != text_vector_size:
+            logging.warning(
+                f"Text embedding size mismatch for {image_path.name} (Expected {text_vector_size}, Got {len(text_embedding)}). Skipping page."
+            )
+            return False
+
+        processed_image_bytes = None
+        original_image_bytes = None
         try:
             with open(image_path, "rb") as f:
-                image_bytes = f.read()
-            logging.debug(f"Read {len(image_bytes)} bytes from image {image_path.name}")
+                original_image_bytes = f.read()
+
+            if original_image_bytes:
+                logging.debug(
+                    f"Read {len(original_image_bytes)} bytes from image {image_path.name}. Processing for storage..."
+                )
+                # Resize and reformat the image before embedding or storing
+                processed_image_bytes = resize_and_format_image_bytes(
+                    original_image_bytes,
+                    MAX_IMAGE_DIMENSION_ETL,  # Use the new constant
+                    target_format=TARGET_IMAGE_FORMAT_FOR_STORAGE,
+                    target_quality=TARGET_IMAGE_QUALITY,
+                )
+                if not processed_image_bytes:  # Fallback if processing failed
+                    logging.warning(
+                        f"Image processing failed for {image_path.name}, using original image bytes if available."
+                    )
+                    processed_image_bytes = original_image_bytes
+            else:
+                logging.warning(
+                    f"Could not read image file {image_path.name}. Image-related data will be skipped."
+                )
+
         except Exception as e:
             logging.warning(
-                f"Could not read image file {image_path.name}: {e}. Storing page without image data."
+                f"Could not read or process image file {image_path.name}: {e}. Image-related data will be skipped."
             )
-            # Continue without image_bytes if reading fails, or handle more strictly if needed
 
-        # Ensure embedding is the correct size (already checked against vector_size)
-        if len(embedding) != vector_size:
-            logging.warning(
-                f"Embedding size mismatch for {image_path.name} (Expected {vector_size}, Got {len(embedding)}). Skipping page."
+        image_embedding = None
+        # Use processed_image_bytes for embedding if available
+        if processed_image_bytes and image_vector_size is not None:
+            image_format_for_embedding = Path(
+                image_path
+            ).suffix  # Original suffix for MIME type hints to vLLM
+            # Some embedding models might be sensitive to format, even if they take bytes.
+            # The actual bytes sent are now from processed_image_bytes (e.g., JPEG)
+            # but we tell vLLM the original format for its "data:mime;base64" hint.
+            # This might need adjustment if vLLM strictly requires the MIME type of the *actual* bytes being sent.
+            # For now, let's assume the original suffix is a good enough hint.
+            image_embedding = get_embedding_vllm_image(
+                processed_image_bytes,  # Use the potentially resized/reformatted bytes
+                args.vllm_image_embedding_endpoint,
+                args.vllm_image_embedding_model,
+                image_format_for_embedding,
             )
-            return False
+            if not image_embedding:
+                logging.warning(
+                    f"Failed to get image embedding for {image_path.name}. Storing page without image embedding."
+                )
+            elif len(image_embedding) != image_vector_size:
+                logging.warning(
+                    f"Image embedding size mismatch for {image_path.name} (Expected {image_vector_size}, Got {len(image_embedding)}). Skipping image embedding."
+                )
+                image_embedding = None
 
-        # d. Upsert to PostgreSQL
         upsert_to_postgres(
             db,
             doc_path,
             page_num,
             transcription,
-            embedding,
-            image_bytes,
+            text_embedding,
+            image_embedding,
+            # Store the processed (resized/reformatted) image bytes if store_raw_images is true
+            processed_image_bytes if args.store_raw_images else None,
         )
         logging.info(f"Successfully processed page {page_num} of {doc_path.name}")
         return True
@@ -663,24 +953,69 @@ def main(args):
         logging.warning("No documents found. Exiting.")
         return
 
-    # 2. Determine embedding vector size from Ollama model
-    logging.info("Determining embedding vector size from Ollama model...")
-    sample_embedding = get_embedding_ollama(
-        "test", args.ollama_endpoint, args.ollama_model
+    # 2. Determine text embedding vector size from vLLM model
+    logging.info(
+        "Determining text embedding vector size from vLLM text embedding model..."
     )
-    if not sample_embedding:
+    sample_text_embedding = get_embedding_vllm_text(
+        "test", args.vllm_text_embedding_endpoint, args.vllm_text_embedding_model
+    )
+    if not sample_text_embedding:
         logging.error(
-            "Could not get sample embedding from Ollama to determine vector size. Exiting."
+            "Could not get sample text embedding from vLLM to determine vector size. Exiting."
         )
         return
-    vector_size = len(sample_embedding)
-    logging.info(f"Determined embedding vector size: {vector_size}")
+    text_vector_size = len(sample_text_embedding)
+    logging.info(f"Determined text embedding vector size: {text_vector_size}")
 
-    # 3. Define the DocumentChunk model with the determined vector size
-    # This function sets the global 'DocumentChunk' variable.
-    define_document_chunk_model(vector_size)
+    # 3. Determine image embedding vector size using ./test_image.png
+    image_vector_size = None
+    test_image_path = Path("./test_image.jpg")  # Define the path to the test image
 
-    # 4. Setup PostgreSQL connection
+    if args.vllm_image_embedding_model and args.vllm_image_embedding_endpoint:
+        logging.info(
+            f"Determining image embedding vector size using {test_image_path}..."
+        )
+        if not test_image_path.is_file():
+            logging.warning(
+                f"Test image {test_image_path} not found. "
+                "Image embedding vector size cannot be determined. Image embeddings will be skipped."
+            )
+        else:
+            try:
+                with open(test_image_path, "rb") as f:
+                    sample_image_bytes = f.read()
+
+                sample_image_embedding = get_embedding_vllm_image(
+                    sample_image_bytes,
+                    args.vllm_image_embedding_endpoint,
+                    args.vllm_image_embedding_model,
+                    test_image_path.suffix,  # Pass the actual suffix (e.g., ".png")
+                )
+                if sample_image_embedding:
+                    image_vector_size = len(sample_image_embedding)
+                    logging.info(
+                        f"Determined image embedding vector size: {image_vector_size}"
+                    )
+                else:
+                    logging.warning(
+                        f"Could not get sample image embedding from vLLM using {test_image_path}. "
+                        "Image embeddings will not be generated or stored."
+                    )
+            except Exception as e:
+                logging.error(
+                    f"Error processing test image {test_image_path} for determining image embedding size: {e}. "
+                    "Image embeddings will be skipped."
+                )
+    else:
+        logging.info(
+            "Image embedding model/endpoint not fully specified. Image embeddings will be skipped."
+        )
+
+    # 4. Define the DocumentChunk model with the determined vector sizes
+    define_document_chunk_model(text_vector_size, image_vector_size)
+
+    # 5. Setup PostgreSQL connection
     if not args.postgres_password:
         # Try to get from environment if not provided via CLI
         args.postgres_password = os.getenv("POSTGRES_PASSWORD")
@@ -716,7 +1051,11 @@ def main(args):
     processed_pages = 0
     errors_occurred = 0
 
-    # 5. Process each document sequentially
+    # 6. Process pages in parallel (X at a time)
+    logging.info(
+        f"Processing {len(documents)} documents with maximum {args.max_workers} pages in parallel"
+    )
+
     for doc_path in documents:
         logging.info(f"--- Starting processing document: {doc_path.name} ---")
         doc_images_output_dir = Path(args.images_output) / doc_path.stem
@@ -734,7 +1073,7 @@ def main(args):
             errors_occurred += 1
             continue
 
-        # 6. Process pages in parallel (X at a time)
+        # 7. Process pages in parallel (X at a time)
         logging.info(
             f"Processing {len(image_paths)} pages from {doc_path.name} with maximum {args.max_workers} pages in parallel"
         )
@@ -756,7 +1095,8 @@ def main(args):
                     page_num,
                     args,
                     db_session_factory,  # Pass the session factory
-                    vector_size,
+                    text_vector_size,
+                    image_vector_size,
                 )
                 future_to_page[future] = (image_path, page_num)
 
@@ -796,7 +1136,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Document Processing Pipeline: PDF/DOCX -> Images -> easyOCR -> Markdown -> Ollama Embedding -> PostgreSQL Upsert"
+        description="Document Processing Pipeline: PDF/DOCX -> Images -> easyOCR -> Markdown -> vLLM Text & Image Embeddings -> PostgreSQL Upsert"
     )
 
     # Input/Output Folders
@@ -821,24 +1161,43 @@ if __name__ == "__main__":
         help="Language for OCR processing (e.g., 'en', 'de', 'fr')",
     )
     parser.add_argument(
+        "--store-raw-images",
+        action="store_true",
+        help="If set, store raw page image bytes in the database. Otherwise, only image embeddings (if configured).",
+    )
+    parser.add_argument(
         "--max-workers",
         type=int,
         default=os.cpu_count() or 1,  # Default to number of CPUs
         help="Maximum number of worker threads for parallel page processing",
     )
 
-    # Ollama Configuration
+    # vLLM Text Embedding Configuration
     parser.add_argument(
-        "--ollama-endpoint",
+        "--vllm-text-embedding-endpoint",
         type=str,
-        default="http://localhost:11434",
-        help="URL of the Ollama server.",
+        default="http://localhost:8001/v1",  # Default for running script locally
+        help="URL of the vLLM text embedding server (OpenAI compatible API, e.g., http://localhost:8001/v1).",
     )
     parser.add_argument(
-        "--ollama-model",
+        "--vllm-text-embedding-model",
         type=str,
         required=True,
-        help="Name of the embedding model served by Ollama.",
+        help="Name of the text embedding model served by vLLM (e.g., text-embedding-model).",
+    )
+
+    # vLLM Image Embedding Configuration
+    parser.add_argument(
+        "--vllm-image-embedding-endpoint",
+        type=str,
+        default="http://localhost:8002/v1",  # Default for running script locally
+        help="URL of the vLLM image embedding server (OpenAI compatible API, e.g., http://localhost:8002/v1).",
+    )
+    parser.add_argument(
+        "--vllm-image-embedding-model",
+        type=str,
+        required=True,
+        help="Name of the image embedding model served by vLLM (e.g., image-embedding-model). Should be a model with vision capabilities.",
     )
 
     # PostgreSQL Configuration

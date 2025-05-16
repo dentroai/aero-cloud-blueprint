@@ -17,75 +17,131 @@ services:
     networks:
       - rag_network
 
-  vllm:
+  vllm_llm:
     image: vllm/vllm-openai:latest
-    container_name: vllm
+    container_name: vllm_llm
     ports:
-      - "8000:8000"
+      - "${VLLM_LLM_PORT:-8000}:8000"
     volumes:
       - hf_cache:/root/.cache/huggingface
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-false}
       - CUDA_LAUNCH_BLOCKING=1
-      - MODEL_ID=${VLLM_MODEL_NAME} # Added for clarity in the command
+      - MODEL_ID=${VLLM_LLM_MODEL_NAME}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all # Use all available GPUs, or specify a number e.g., 1
+              count: all
               capabilities: [gpu]
-    command: # Pass model args here
+    command:
       - --model
-      - ${VLLM_MODEL_NAME} # Mandatory: Set in .env
+      - ${VLLM_LLM_MODEL_NAME}
       - --max-model-len
-      - ${VLLM_MAX_MODEL_LEN:-8192} # Default max length
+      - ${VLLM_LLM_MAX_MODEL_LEN:-8192}
       - --gpu-memory-utilization
-      - ${VLLM_GPU_MEM_UTIL:-0.9} # Default GPU memory utilization
+      - ${VLLM_LLM_GPU_MEM_UTIL:-0.9}
       - --served-model-name
-      - ${VLLM_SERVED_MODEL_NAME:-vllm-model} # Model name for OpenAI API
+      - ${VLLM_LLM_SERVED_MODEL_NAME:-vllm-llm-model}
       - --enforce-eager
-      # - --tool-call-parser
-      # - hermes
-      # - --chat-template
-      # - examples/tool_chat_template_hermes.jinja
-    ipc: host # Necessary for multi-process communication
+      - --tensor-parallel-size
+      - ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+    ipc: host
     restart: always
     networks:
       - rag_network
 
-  ollama:
-    build:
-      context: ./ollama # Build from the local Dockerfile
-      args:
-        - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL} # Mandatory: Set in .env
-    container_name: ollama
+  vllm_text_embedder:
+    image: vllm/vllm-openai:latest
+    container_name: vllm_text_embedder
     ports:
-      - "11434:11434"
+      - "${VLLM_TEXT_EMBEDDING_PORT:-8001}:8000"
     volumes:
-      - ollama_data:/root/.ollama
+      - hf_cache:/root/.cache/huggingface
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-false}
+      - CUDA_LAUNCH_BLOCKING=1
+      - VLLM_TEXT_EMBEDDING_MODEL_NAME=${VLLM_TEXT_EMBEDDING_MODEL_NAME:-Snowflake/snowflake-arctic-embed-l-v2.0}
+      - VLLM_TEXT_EMBEDDING_SERVED_NAME=${VLLM_TEXT_EMBEDDING_SERVED_NAME:-text-embedding-model}
+      - VLLM_TEXT_EMBEDDING_GPU_MEM_UTIL=${VLLM_TEXT_EMBEDDING_GPU_MEM_UTIL:-0.9}
+      - VLLM_TEXT_EMBEDDING_MAX_LEN=${VLLM_TEXT_EMBEDDING_MAX_LEN:-4096}
+      - VLLM_TEXT_EMBEDDING_TRUST_REMOTE_CODE=${VLLM_TEXT_EMBEDDING_TRUST_REMOTE_CODE:-true}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all # Use all available GPUs
+              count: all
               capabilities: [gpu]
-    tty: true # Keeps the container running
+    command:
+      - --model
+      - ${VLLM_TEXT_EMBEDDING_MODEL_NAME}
+      - --served-model-name
+      - ${VLLM_TEXT_EMBEDDING_SERVED_NAME}
+      - --gpu-memory-utilization
+      - ${VLLM_TEXT_EMBEDDING_GPU_MEM_UTIL}
+      - --max-model-len
+      - ${VLLM_TEXT_EMBEDDING_MAX_LEN}
+      - --tensor-parallel-size
+      - ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - --task
+      - embed
+      - --trust-remote-code
+    ipc: host
+    restart: always
+    networks:
+      - rag_network
+
+  vllm_image_embedder:
+    image: vllm/vllm-openai:latest
+    container_name: vllm_image_embedder
+    ports:
+      - "${VLLM_IMAGE_EMBEDDING_PORT:-8002}:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-false}
+      - CUDA_LAUNCH_BLOCKING=1
+      - VLLM_IMAGE_EMBEDDING_MODEL_NAME=${VLLM_IMAGE_EMBEDDING_MODEL_NAME}
+      - VLLM_IMAGE_EMBEDDING_SERVED_NAME=${VLLM_IMAGE_EMBEDDING_SERVED_NAME:-image-embedding-model}
+      - VLLM_IMAGE_EMBEDDING_GPU_MEM_UTIL=${VLLM_IMAGE_EMBEDDING_GPU_MEM_UTIL:-0.9}
+      - VLLM_IMAGE_EMBEDDING_TRUST_REMOTE_CODE=${VLLM_IMAGE_EMBEDDING_TRUST_REMOTE_CODE:-false}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - --model
+      - ${VLLM_IMAGE_EMBEDDING_MODEL_NAME}
+      - --served-model-name
+      - ${VLLM_IMAGE_EMBEDDING_SERVED_NAME}
+      - --gpu-memory-utilization
+      - ${VLLM_IMAGE_EMBEDDING_GPU_MEM_UTIL}
+      - --tensor-parallel-size
+      - ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - --task
+      - embed
+    ipc: host
     restart: always
     networks:
       - rag_network
 
   flowise:
     build:
-      context: https://github.com/dentroai/Flowise.git # Build from the dentroai fork
+      context: https://github.com/dentroai/Flowise.git
     container_name: flowise
     ports:
-      - "${FLOWISE_PORT:-3000}:${FLOWISE_PORT:-3000}" # Expose Flowise port
+      - "${FLOWISE_PORT:-3000}:${FLOWISE_PORT:-3000}"
     volumes:
-      - flowise_data:${FLOWISE_DATABASE_PATH:-/root/.flowise} # Mount main data path
-      - flowise_data_audit:${FLOWISE_AUDIT_TRAIL_STORAGE_PATH:-/data/} # Mount audit trail path
+      - flowise_data:${FLOWISE_DATABASE_PATH:-/root/.flowise}
+      - flowise_data_audit:${FLOWISE_AUDIT_TRAIL_STORAGE_PATH:-/data/}
     environment:
       - PORT=${FLOWISE_PORT:-3000}
       - DATABASE_PATH=${FLOWISE_DATABASE_PATH:-/root/.flowise}
@@ -99,6 +155,7 @@ services:
       - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
       - CORS_ORIGINS=${FLOWISE_CORS_ORIGINS}
       - IFRAME_ORIGINS=${FLOWISE_IFRAME_ORIGINS}
+      - DEBUG=flowise:*
     restart: always
     networks:
       - rag_network
@@ -106,7 +163,6 @@ services:
 volumes:
   postgres_data:
   hf_cache:
-  ollama_data:
   flowise_data:
   flowise_data_audit:
 
