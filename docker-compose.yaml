@@ -138,12 +138,12 @@ services:
       context: https://github.com/dentroai/Flowise.git
     container_name: flowise
     ports:
-      - "${FLOWISE_PORT:-3000}:${FLOWISE_PORT:-3000}"
+      - "${FLOWISE_PORT:-3002}:${FLOWISE_PORT:-3002}"
     volumes:
       - flowise_data:${FLOWISE_DATABASE_PATH:-/root/.flowise}
       - flowise_data_audit:${FLOWISE_AUDIT_TRAIL_STORAGE_PATH:-/data/}
     environment:
-      - PORT=${FLOWISE_PORT:-3000}
+      - PORT=${FLOWISE_PORT:-3002}
       - DATABASE_PATH=${FLOWISE_DATABASE_PATH:-/root/.flowise}
       - APIKEY_PATH=${FLOWISE_APIKEY_PATH:-/root/.flowise}
       - SECRETKEY_PATH=${FLOWISE_SECRETKEY_PATH:-/root/.flowise}
@@ -166,10 +166,10 @@ services:
       args:
         - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
         - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
-        - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+        - NEXT_PUBLIC_BASE_URL=http://localhost:${AERO_CHAT_PORT:-3000}
     container_name: aero-chat
     ports:
-      - "${AERO_CHAT_PORT:-3001}:3000"
+      - "${AERO_CHAT_PORT:-3000}:3000"
     volumes:
       - aero_chat_data:/app/data
     environment:
@@ -177,7 +177,7 @@ services:
       - DATABASE_URL=file:/app/data/dev.db
       - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
       - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
-      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+      - NEXT_PUBLIC_BASE_URL=http://localhost:${AERO_CHAT_PORT:-3000}
     restart: always
     networks:
       - rag_network

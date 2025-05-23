@@ -63,7 +63,7 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    VLLM_IMAGE_EMBEDDING_TRUST_REMOTE_CODE=false
 
    # Flowise Configuration
-   FLOWISE_PORT=3000
+   FLOWISE_PORT=3002
    FLOWISE_DATABASE_PATH=/root/.flowise
    FLOWISE_APIKEY_PATH=/root/.flowise
    FLOWISE_SECRETKEY_PATH=/root/.flowise
@@ -77,16 +77,17 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    FLOWISE_IFRAME_ORIGINS=*
 
    # Aero Chat Configuration
-   AERO_CHAT_PORT=3001
+   AERO_CHAT_PORT=3000
    GITHUB_TOKEN=your_github_personal_access_token
    AERO_CHAT_REPO_OWNER=your-github-username
    AERO_CHAT_REPO_NAME=your-private-repo-name
    AERO_CHAT_REPO_BRANCH=main
    NEXT_PUBLIC_MSAL_CLIENT_ID=your_msal_client_id
    NEXT_PUBLIC_MSAL_TENANT_ID=your_msal_tenant_id
-   NEXT_PUBLIC_BASE_URL=http://localhost:3001
+   NEXT_PUBLIC_BASE_URL=http://localhost:${AERO_CHAT_PORT:-3000}
 
    # Langfuse Configuration (if using)
+   LANGFUSE_PORT=3001
    LANGFUSE_DB_PASSWORD=your_langfuse_db_password
    LANGFUSE_SALT=your_salt
    LANGFUSE_ENCRYPTION_KEY=your_encryption_key
@@ -119,15 +120,15 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
 
 4. **Access the services**:
    Once the containers are running, you can access the web interfaces:
-   - **Aero Chat**: [http://localhost:3001](http://localhost:3001) (Next.js application with MSAL authentication)
-   - **Flowise**: [http://localhost:3000](http://localhost:3000) (Use the username and password you set in `.env`)
-   - **Langfuse**: [http://localhost:3002](http://localhost:3002) *(Note: Port updated to avoid conflict with Aero Chat)*
+   - **Aero Chat**: [http://localhost:${AERO_CHAT_PORT:-3000}](http://localhost:${AERO_CHAT_PORT:-3000}) (Next.js application with MSAL authentication)
+   - **Langfuse**: [http://localhost:${LANGFUSE_PORT:-3001}](http://localhost:${LANGFUSE_PORT:-3001})
+   - **Flowise**: [http://localhost:${FLOWISE_PORT:-3002}](http://localhost:${FLOWISE_PORT:-3002}) (Use the username and password you set in `.env`)
    - **Minio UI (Optional, used by Langfuse)**: [http://localhost:9090](http://localhost:9090) (Login with user `minio` and the `LANGFUSE_MINIO_PASSWORD` from `.env`)
    - You can connect to the main RAG PostgreSQL database (service name `postgres`) using a PostgreSQL client on `localhost:5432` (or the `POSTGRES_PORT` you set) with the credentials from your `.env` file.
 
 ## Connecting Services in Flowise
 
-When building chatflows in the Flowise UI ([http://localhost:3000](http://localhost:3000)), you'll need to connect to the other running services. Because all containers are on the same Docker network (`rag_network`), they can communicate using their service names as hostnames.
+When building chatflows in the Flowise UI ([http://localhost:${FLOWISE_PORT:-3002}](http://localhost:${FLOWISE_PORT:-3002})), you'll need to connect to the other running services. Because all containers are on the same Docker network (`rag_network`), they can communicate using their service names as hostnames.
 
 Here are the typical settings:
 
@@ -144,7 +145,7 @@ Here are the typical settings:
 |                    |                       | `Embedding Column Name`  | `embedding`                                   |                                                                       |
 |                    |                       | `Metadata Column Name(s)`| `file_name, page_number, file_path` (comma-separated) | Add other metadata columns as needed.                               |
 | **Langfuse (Tracing)**| `Langfuse`          | `Endpoint`               | `http://langfuse-web:3000`                    | Use the container name `langfuse-web` and port `3000`.                |
-|                    |                       | `Secret Key` / `Public Key`| *Get these from the Langfuse UI* ([http://localhost:3001](http://localhost:3001)) | Go to Project Settings -> API Keys in Langfuse to generate keys. |
+|                    |                       | `Secret Key` / `Public Key`| *Get these from the Langfuse UI* ([http://localhost:${LANGFUSE_PORT:-3001}](http://localhost:${LANGFUSE_PORT:-3001})) | Go to Project Settings -> API Keys in Langfuse to generate keys. |
 
 **Important:** When using these URLs within Flowise, Docker's internal networking resolves the service names (like `vllm`, `ollama`, `postgres`, `langfuse-web`) to the correct container IP addresses. Do not use `localhost` for these internal connections.
 
@@ -260,7 +261,7 @@ DOCKER_BUILDKIT=1 docker compose build aero-chat --ssh default
     *   **Private repo access**: Ensure your GitHub token has `repo` scope and the repository URL includes authentication
     *   **MSAL configuration**: Verify `NEXT_PUBLIC_MSAL_CLIENT_ID` and `NEXT_PUBLIC_MSAL_TENANT_ID` are correctly set
     *   **Database errors**: Check that the `/app/data` volume has proper write permissions
-    *   **Port conflicts**: If port 3001 is already in use, change `AERO_CHAT_PORT` in your `.env` file
+    *   **Port conflicts**: If port 3000 is already in use, change `AERO_CHAT_PORT` in your `.env` file
 
 ## Customization
 
