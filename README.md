@@ -219,9 +219,9 @@ The Aero Chat service is configured to build directly from a private GitHub repo
 3. **Repository URL Format**:
    The docker-compose configuration automatically constructs the repository URL as:
    ```
-   https://${GITHUB_TOKEN}:x-oauth-basic@github.com/${AERO_CHAT_REPO_OWNER}/${AERO_CHAT_REPO_NAME}.git#${AERO_CHAT_REPO_BRANCH}
+   https://x-access-token:${GITHUB_TOKEN}@github.com/${AERO_CHAT_REPO_OWNER}/${AERO_CHAT_REPO_NAME}.git#${AERO_CHAT_REPO_BRANCH}
    ```
-   The `:x-oauth-basic` suffix is required for Docker builds to properly authenticate with GitHub using Personal Access Tokens.
+   Using `x-access-token` as the username explicitly tells Git that the provided `GITHUB_TOKEN` is an access token, preventing password prompts.
 
 ### Branch Selection
 You can specify any branch by changing the `AERO_CHAT_REPO_BRANCH` environment variable. This is useful for:
@@ -257,12 +257,7 @@ DOCKER_BUILDKIT=1 docker compose build aero-chat --ssh default
 *   **Flowise Connection Errors**: Double-check the URLs used in Flowise nodes – ensure they use the service names (e.g., `http://vllm:8000/v1`) and not `localhost`. Verify the target service is running (`docker ps`).
 *   **Langfuse Errors**: Check logs for all `langfuse-*` services and their dependencies (`postgres`, `redis`, `clickhouse`, `minio`). Ensure passwords in `.env` match those used by the services.
 *   **Aero Chat Build/Authentication Issues**:
-    *   **Private repo access**: Ensure your GitHub token has `repo` scope and is correctly formatted
-    *   **Git authentication errors**: If you see "terminal prompts disabled" or password errors:
-        - Verify your `GITHUB_TOKEN` is correct (starts with `ghp_`)
-        - Ensure the token has `repo` scope for private repositories
-        - Try regenerating your GitHub token if authentication keeps failing
-        - Alternative: Use local clone method (see README section on alternative approaches)
+    *   **Private repo access**: Ensure your GitHub token has `repo` scope and the repository URL includes authentication
     *   **MSAL configuration**: Verify `NEXT_PUBLIC_MSAL_CLIENT_ID` and `NEXT_PUBLIC_MSAL_TENANT_ID` are correctly set
     *   **Database errors**: Check that the `/app/data` volume has proper write permissions
     *   **Port conflicts**: If port 3001 is already in use, change `AERO_CHAT_PORT` in your `.env` file

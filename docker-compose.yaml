@@ -162,7 +162,7 @@ services:
 
   aero-chat:
     build:
-      context: https://${GITHUB_TOKEN}:x-oauth-basic@github.com/${AERO_CHAT_REPO_OWNER}/${AERO_CHAT_REPO_NAME}.git#${AERO_CHAT_REPO_BRANCH}
+      context: https://x-access-token:${GITHUB_TOKEN}@github.com/${AERO_CHAT_REPO_OWNER}/${AERO_CHAT_REPO_NAME}.git#${AERO_CHAT_REPO_BRANCH}
       args:
         - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
         - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
