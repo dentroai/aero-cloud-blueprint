@@ -63,7 +63,6 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    VLLM_IMAGE_EMBEDDING_TRUST_REMOTE_CODE=false
 
    # Flowise Configuration
-   FLOWISE_PORT=3002
    FLOWISE_DATABASE_PATH=/root/.flowise
    FLOWISE_APIKEY_PATH=/root/.flowise
    FLOWISE_SECRETKEY_PATH=/root/.flowise
@@ -77,17 +76,15 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    FLOWISE_IFRAME_ORIGINS=*
 
    # Aero Chat Configuration
-   AERO_CHAT_PORT=3000
    GITHUB_TOKEN=your_github_personal_access_token
    AERO_CHAT_REPO_OWNER=your-github-username
    AERO_CHAT_REPO_NAME=your-private-repo-name
    AERO_CHAT_REPO_BRANCH=main
    NEXT_PUBLIC_MSAL_CLIENT_ID=your_msal_client_id
    NEXT_PUBLIC_MSAL_TENANT_ID=your_msal_tenant_id
-   NEXT_PUBLIC_BASE_URL=http://localhost:${AERO_CHAT_PORT:-3000}
+   NEXT_PUBLIC_BASE_URL=https://aero-chat.dentro-innovation.com
 
    # Langfuse Configuration (if using)
-   LANGFUSE_PORT=3001
    LANGFUSE_DB_PASSWORD=your_langfuse_db_password
    LANGFUSE_SALT=your_salt
    LANGFUSE_ENCRYPTION_KEY=your_encryption_key
@@ -119,16 +116,54 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    This command downloads the necessary images (if not already present), builds the custom ones (Ollama, Flowise), and starts all the containers in the background (`-d`). The first startup might take some time, especially for downloading large models.
 
 4. **Access the services**:
-   Once the containers are running, you can access the web interfaces:
-   - **Aero Chat**: [http://localhost:${AERO_CHAT_PORT:-3000}](http://localhost:${AERO_CHAT_PORT:-3000}) (Next.js application with MSAL authentication)
-   - **Langfuse**: [http://localhost:${LANGFUSE_PORT:-3001}](http://localhost:${LANGFUSE_PORT:-3001})
-   - **Flowise**: [http://localhost:${FLOWISE_PORT:-3002}](http://localhost:${FLOWISE_PORT:-3002}) (Use the username and password you set in `.env`)
-   - **Minio UI (Optional, used by Langfuse)**: [http://localhost:9090](http://localhost:9090) (Login with user `minio` and the `LANGFUSE_MINIO_PASSWORD` from `.env`)
-   - You can connect to the main RAG PostgreSQL database (service name `postgres`) using a PostgreSQL client on `localhost:5432` (or the `POSTGRES_PORT` you set) with the credentials from your `.env` file.
+   Once the containers are running, you can access the web interfaces via HTTPS:
+   - **Aero Chat**: [https://aero-chat.dentro-innovation.com](https://aero-chat.dentro-innovation.com) (Next.js application with MSAL authentication)
+   - **Langfuse**: [https://aero-langfuse.dentro-innovation.com](https://aero-langfuse.dentro-innovation.com)
+   - **Flowise**: [https://aero-flowise.dentro-innovation.com](https://aero-flowise.dentro-innovation.com) (Use the username and password you set in `.env`)
+   - **Minio UI (Optional, used by Langfuse)**: [http://localhost:9090](http://localhost:9090) (Login with user `minio` and the `LANGFUSE_MINIO_PASSWORD` from `.env`) - **Only accessible from server itself**
+   - You can connect to the main RAG PostgreSQL database (service name `postgres`) using a PostgreSQL client on `localhost:5432` (or the `POSTGRES_PORT` you set) with the credentials from your `.env` file - **Only accessible from server itself**
+
+## SSL and Reverse Proxy Setup
+
+This setup includes Caddy as a reverse proxy with automatic SSL certificate provisioning via Let's Encrypt. The following domains are configured:
+
+- `aero-chat.dentro-innovation.com` → aero-chat:3000
+- `aero-flowise.dentro-innovation.com` → flowise:3000  
+- `aero-langfuse.dentro-innovation.com` → langfuse-web:3000
+
+**Port Standardization**: Since Caddy handles routing based on domain names, all services now use port 3000 internally. There are no port conflicts because each service runs in its own container and Caddy routes traffic based on the domain name.
+
+**Important**: Make sure your DNS records point to your server's IP address before starting the services. Caddy will automatically obtain SSL certificates from Let's Encrypt.
+
+**Security Features:**
+- Automatic HTTPS redirects
+- Security headers (HSTS, CSP, etc.)
+- Gzip compression
+- Certificate persistence in Docker volumes
+- **Localhost binding**: All internal services (PostgreSQL, vLLM, Minio) are bound to `127.0.0.1` to prevent direct internet access
+
+## Security Configuration
+
+**Protected Services (localhost only):**
+- **PostgreSQL**: `localhost:5432` - Database access restricted to local machine
+- **vLLM Services**: `localhost:8000`, `localhost:8001`, `localhost:8002` - LLM APIs restricted
+- **Minio**: `localhost:9090` - Object storage admin panel restricted
+- **Redis, ClickHouse**: `localhost:6379`, `localhost:8123` - Internal services protected
+
+**Public Services (via Caddy only):**
+- **Aero Chat**: `https://aero-chat.dentro-innovation.com`
+- **Langfuse**: `https://aero-langfuse.dentro-innovation.com`  
+- **Flowise**: `https://aero-flowise.dentro-innovation.com`
+
+**Why This Matters:**
+- **No direct database access** from internet
+- **No unauthorized LLM usage** 
+- **No file system access** via Minio
+- **Only web interfaces** accessible publicly via HTTPS
 
 ## Connecting Services in Flowise
 
-When building chatflows in the Flowise UI ([http://localhost:${FLOWISE_PORT:-3002}](http://localhost:${FLOWISE_PORT:-3002})), you'll need to connect to the other running services. Because all containers are on the same Docker network (`rag_network`), they can communicate using their service names as hostnames.
+When building chatflows in the Flowise UI ([https://aero-flowise.dentro-innovation.com](https://aero-flowise.dentro-innovation.com)), you'll need to connect to the other running services. Because all containers are on the same Docker network (`rag_network`), they can communicate using their service names as hostnames.
 
 Here are the typical settings:
 
@@ -145,7 +180,7 @@ Here are the typical settings:
 |                    |                       | `Embedding Column Name`  | `embedding`                                   |                                                                       |
 |                    |                       | `Metadata Column Name(s)`| `file_name, page_number, file_path` (comma-separated) | Add other metadata columns as needed.                               |
 | **Langfuse (Tracing)**| `Langfuse`          | `Endpoint`               | `http://langfuse-web:3000`                    | Use the container name `langfuse-web` and port `3000`.                |
-|                    |                       | `Secret Key` / `Public Key`| *Get these from the Langfuse UI* ([http://localhost:${LANGFUSE_PORT:-3001}](http://localhost:${LANGFUSE_PORT:-3001})) | Go to Project Settings -> API Keys in Langfuse to generate keys. |
+|                    |                       | `Secret Key` / `Public Key`| *Get these from the Langfuse UI* ([https://aero-langfuse.dentro-innovation.com](https://aero-langfuse.dentro-innovation.com)) | Go to Project Settings -> API Keys in Langfuse to generate keys. |
 
 **Important:** When using these URLs within Flowise, Docker's internal networking resolves the service names (like `vllm`, `ollama`, `postgres`, `langfuse-web`) to the correct container IP addresses. Do not use `localhost` for these internal connections.
 

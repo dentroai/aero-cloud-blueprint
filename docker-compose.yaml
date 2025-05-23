@@ -5,7 +5,7 @@ services:
     image: pgvector/pgvector:pg16
     container_name: postgres
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
@@ -21,7 +21,7 @@ services:
     image: vllm/vllm-openai:latest
     container_name: vllm_llm
     ports:
-      - "${VLLM_LLM_PORT:-8000}:8000"
+      - "127.0.0.1:${VLLM_LLM_PORT:-8000}:8000"
     volumes:
       - hf_cache:/root/.cache/huggingface
     environment:
@@ -57,7 +57,7 @@ services:
     image: vllm/vllm-openai:latest
     container_name: vllm_text_embedder
     ports:
-      - "${VLLM_TEXT_EMBEDDING_PORT:-8001}:8000"
+      - "127.0.0.1:${VLLM_TEXT_EMBEDDING_PORT:-8001}:8000"
     volumes:
       - hf_cache:/root/.cache/huggingface
     environment:
@@ -99,7 +99,7 @@ services:
     image: vllm/vllm-openai:latest
     container_name: vllm_image_embedder
     ports:
-      - "${VLLM_IMAGE_EMBEDDING_PORT:-8002}:8000"
+      - "127.0.0.1:${VLLM_IMAGE_EMBEDDING_PORT:-8002}:8000"
     volumes:
       - hf_cache:/root/.cache/huggingface
     environment:
@@ -137,13 +137,13 @@ services:
     build:
       context: https://github.com/dentroai/Flowise.git
     container_name: flowise
-    ports:
-      - "${FLOWISE_PORT:-3002}:${FLOWISE_PORT:-3002}"
+    expose:
+      - "3000"
     volumes:
       - flowise_data:${FLOWISE_DATABASE_PATH:-/root/.flowise}
       - flowise_data_audit:${FLOWISE_AUDIT_TRAIL_STORAGE_PATH:-/data/}
     environment:
-      - PORT=${FLOWISE_PORT:-3002}
+      - PORT=3000
       - DATABASE_PATH=${FLOWISE_DATABASE_PATH:-/root/.flowise}
       - APIKEY_PATH=${FLOWISE_APIKEY_PATH:-/root/.flowise}
       - SECRETKEY_PATH=${FLOWISE_SECRETKEY_PATH:-/root/.flowise}
@@ -166,10 +166,10 @@ services:
       args:
         - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
         - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
-        - NEXT_PUBLIC_BASE_URL=http://localhost:${AERO_CHAT_PORT:-3000}
+        - NEXT_PUBLIC_BASE_URL=https://aero-chat.dentro-innovation.com
     container_name: aero-chat
-    ports:
-      - "${AERO_CHAT_PORT:-3000}:3000"
+    expose:
+      - "3000"
     volumes:
       - aero_chat_data:/app/data
     environment:
@@ -177,12 +177,29 @@ services:
       - DATABASE_URL=file:/app/data/dev.db
       - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
       - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
-      - NEXT_PUBLIC_BASE_URL=http://localhost:${AERO_CHAT_PORT:-3000}
+      - NEXT_PUBLIC_BASE_URL=https://aero-chat.dentro-innovation.com
     restart: always
     networks:
       - rag_network
     depends_on:
       - postgres
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: always
+    networks:
+      - rag_network
+    depends_on:
+      - aero-chat
+      - flowise
 
 volumes:
   postgres_data:
@@ -190,6 +207,8 @@ volumes:
   flowise_data:
   flowise_data_audit:
   aero_chat_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   rag_network:
