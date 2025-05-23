@@ -160,11 +160,36 @@ services:
     networks:
       - rag_network
 
+  aero-chat:
+    build:
+      context: https://${GITHUB_TOKEN}@github.com/${AERO_CHAT_REPO_OWNER}/${AERO_CHAT_REPO_NAME}.git#${AERO_CHAT_REPO_BRANCH}
+      args:
+        - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
+        - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
+        - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+    container_name: aero-chat
+    ports:
+      - "${AERO_CHAT_PORT:-3001}:3000"
+    volumes:
+      - aero_chat_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/dev.db
+      - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
+      - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
+      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+    restart: always
+    networks:
+      - rag_network
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
   hf_cache:
   flowise_data:
   flowise_data_audit:
+  aero_chat_data:
 
 networks:
   rag_network:

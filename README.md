@@ -9,6 +9,7 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
 - **PostgreSQL with pgvector**: Vector database
 - **Flowise**: No-code chat flow builder (custom fork)
 - **Langfuse**: Tracing for chatbot interactions
+- **Aero Chat**: Next.js application with MSAL authentication
 
 ## Prerequisites
 
@@ -26,11 +27,76 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    ```
 
 2. **Configure environment variables**:
-   Copy the example environment file:
+   Create a `.env` file with your specific settings:
    ```bash
-   cp .env.example .env
+   # PostgreSQL Configuration
+   POSTGRES_PORT=5432
+   POSTGRES_DB=rag_db
+   POSTGRES_USER=rag_user
+   POSTGRES_PASSWORD=your_secure_postgres_password
+
+   # Hugging Face Configuration
+   HUGGING_FACE_HUB_TOKEN=your_hugging_face_token
+   HF_HUB_ENABLE_HF_TRANSFER=false
+
+   # vLLM LLM Configuration
+   VLLM_LLM_PORT=8000
+   VLLM_LLM_MODEL_NAME=microsoft/DialoGPT-medium
+   VLLM_LLM_MAX_MODEL_LEN=8192
+   VLLM_LLM_GPU_MEM_UTIL=0.9
+   VLLM_LLM_SERVED_MODEL_NAME=vllm-llm-model
+   VLLM_TENSOR_PARALLEL_SIZE=1
+
+   # vLLM Text Embedding Configuration
+   VLLM_TEXT_EMBEDDING_PORT=8001
+   VLLM_TEXT_EMBEDDING_MODEL_NAME=Snowflake/snowflake-arctic-embed-l-v2.0
+   VLLM_TEXT_EMBEDDING_SERVED_NAME=text-embedding-model
+   VLLM_TEXT_EMBEDDING_GPU_MEM_UTIL=0.9
+   VLLM_TEXT_EMBEDDING_MAX_LEN=4096
+   VLLM_TEXT_EMBEDDING_TRUST_REMOTE_CODE=true
+
+   # vLLM Image Embedding Configuration
+   VLLM_IMAGE_EMBEDDING_PORT=8002
+   VLLM_IMAGE_EMBEDDING_MODEL_NAME=your_image_embedding_model
+   VLLM_IMAGE_EMBEDDING_SERVED_NAME=image-embedding-model
+   VLLM_IMAGE_EMBEDDING_GPU_MEM_UTIL=0.9
+   VLLM_IMAGE_EMBEDDING_TRUST_REMOTE_CODE=false
+
+   # Flowise Configuration
+   FLOWISE_PORT=3000
+   FLOWISE_DATABASE_PATH=/root/.flowise
+   FLOWISE_APIKEY_PATH=/root/.flowise
+   FLOWISE_SECRETKEY_PATH=/root/.flowise
+   FLOWISE_LOG_PATH=/root/.flowise/logs
+   FLOWISE_BLOB_STORAGE_PATH=/root/.flowise/storage
+   FLOWISE_AUDIT_TRAIL_STORAGE_PATH=/data/
+   FLOWISE_DISABLE_TELEMETRY=true
+   FLOWISE_USERNAME=your_flowise_username
+   FLOWISE_PASSWORD=your_flowise_password
+   FLOWISE_CORS_ORIGINS=*
+   FLOWISE_IFRAME_ORIGINS=*
+
+   # Aero Chat Configuration
+   AERO_CHAT_PORT=3001
+   GITHUB_TOKEN=your_github_personal_access_token
+   AERO_CHAT_REPO_OWNER=your-github-username
+   AERO_CHAT_REPO_NAME=your-private-repo-name
+   AERO_CHAT_REPO_BRANCH=main
+   NEXT_PUBLIC_MSAL_CLIENT_ID=your_msal_client_id
+   NEXT_PUBLIC_MSAL_TENANT_ID=your_msal_tenant_id
+   NEXT_PUBLIC_BASE_URL=http://localhost:3001
+
+   # Langfuse Configuration (if using)
+   LANGFUSE_DB_PASSWORD=your_langfuse_db_password
+   LANGFUSE_SALT=your_salt
+   LANGFUSE_ENCRYPTION_KEY=your_encryption_key
+   LANGFUSE_CLICKHOUSE_PASSWORD=your_clickhouse_password
+   LANGFUSE_MINIO_PASSWORD=your_minio_password
+   LANGFUSE_REDIS_PASSWORD=your_redis_password
+   LANGFUSE_NEXTAUTH_SECRET=your_nextauth_secret
    ```
-   Now, edit the `.env` file with your specific settings:
+
+   **Key Environment Variables:**
    - **Required:** Set `HUGGING_FACE_HUB_TOKEN` if you plan to use gated models like Llama or Gemma V2 from Hugging Face. You can get a token from [Hugging Face Settings](https://huggingface.co/settings/tokens).
    - **Required:** Choose your `VLLM_MODEL_NAME`. Most models from Hugging Face Hub should work. 
      - For **testing** on systems with no or lower VRAM (e.g., 2GB), try a smaller model like `google/gemma-3-1b-it`.
@@ -39,6 +105,9 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
      - **Note:** The required VRAM also depends significantly on the `VLLM_MAX_MODEL_LEN` (context window size) set in your `.env` file. Larger context windows require more VRAM.
    - **Required:** Set a secure `FLOWISE_USERNAME` and `FLOWISE_PASSWORD` for accessing the Flowise UI.
    - **Required:** Set `POSTGRES_PASSWORD` for the main RAG PostgreSQL database.
+   - **Required:** Set `GITHUB_TOKEN` to your GitHub Personal Access Token with `repo` scope.
+   - **Required:** Configure `AERO_CHAT_REPO_OWNER`, `AERO_CHAT_REPO_NAME`, and `AERO_CHAT_REPO_BRANCH` for your private repository.
+   - **Required:** Configure MSAL authentication variables for Aero Chat.
    - **Recommended:** Review and change the default `LANGFUSE_*` passwords and secrets in the `.env` file, especially `LANGFUSE_DB_PASSWORD`, `LANGFUSE_SALT`, `LANGFUSE_ENCRYPTION_KEY`, `LANGFUSE_CLICKHOUSE_PASSWORD`, `LANGFUSE_MINIO_PASSWORD`, `LANGFUSE_REDIS_PASSWORD`, and `LANGFUSE_NEXTAUTH_SECRET`. Generate a secure `LANGFUSE_ENCRYPTION_KEY` using `openssl rand -hex 32`.
 
 3. **Start the services**:
@@ -50,8 +119,9 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
 
 4. **Access the services**:
    Once the containers are running, you can access the web interfaces:
+   - **Aero Chat**: [http://localhost:3001](http://localhost:3001) (Next.js application with MSAL authentication)
    - **Flowise**: [http://localhost:3000](http://localhost:3000) (Use the username and password you set in `.env`)
-   - **Langfuse**: [http://localhost:3001](http://localhost:3001)
+   - **Langfuse**: [http://localhost:3002](http://localhost:3002) *(Note: Port updated to avoid conflict with Aero Chat)*
    - **Minio UI (Optional, used by Langfuse)**: [http://localhost:9090](http://localhost:9090) (Login with user `minio` and the `LANGFUSE_MINIO_PASSWORD` from `.env`)
    - You can connect to the main RAG PostgreSQL database (service name `postgres`) using a PostgreSQL client on `localhost:5432` (or the `POSTGRES_PORT` you set) with the credentials from your `.env` file.
 
@@ -80,6 +150,11 @@ Here are the typical settings:
 
 ## Component Details
 
+*   **Aero Chat**: A Next.js application with Microsoft Authentication Library (MSAL) integration for secure user authentication. Built using Bun runtime for optimal performance. Features include:
+    *   **Database**: Uses SQLite with Prisma ORM for data persistence
+    *   **Authentication**: MSAL (Microsoft Authentication Library) for Azure AD integration
+    *   **Build Process**: Multi-stage Docker build with standalone output for production efficiency
+    *   **Data Persistence**: SQLite database stored in `aero_chat_data` volume
 *   **vLLM**: High-throughput LLM serving engine using the OpenAI API format. Configuration is managed via the `.env` file (`VLLM_*` variables). Runs on GPU. The VRAM needed depends heavily on the chosen model size and the configured maximum context length (`VLLM_MAX_MODEL_LEN`).
 *   **Ollama**: Serves embedding models (and can also serve LLMs, though vLLM is used here for the main LLM). The Dockerfile pre-pulls the embedding model specified in `.env` (`OLLAMA_EMBEDDING_MODEL`). You can change this to any other model available in the [Ollama Library](https://ollama.com/library). **Crucially**, ensure you use the *same* embedding model when adding data to PostgreSQL (indexing/upserting) and when querying it later in your Flowise flow.
 *   **PostgreSQL with pgvector**: A powerful relational database extended with `pgvector` for storing and searching embeddings generated by Ollama. Data is persisted in the `postgres_data` volume. The ETL script creates a table named `document_chunks`.
@@ -120,6 +195,53 @@ The script will use the `POSTGRES_PASSWORD` from your environment or the `.env` 
 *   **Rebuild a specific service**: `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml build [service_name]` (e.g., `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml build flowise` if you modify its source).
 *   **Restart services**: `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml restart`.
 
+## Building from Private GitHub Repository
+
+The Aero Chat service is configured to build directly from a private GitHub repository using GitHub Personal Access Token authentication.
+
+### Setup Instructions
+
+1. **Generate a GitHub Personal Access Token**:
+   - Go to [GitHub Settings > Personal Access Tokens](https://github.com/settings/tokens)
+   - Click "Generate new token (classic)"
+   - Select the `repo` scope (full control of private repositories)
+   - Copy the generated token
+
+2. **Configure Environment Variables**:
+   Set these variables in your `.env` file:
+   ```bash
+   GITHUB_TOKEN=ghp_your_personal_access_token_here
+   AERO_CHAT_REPO_OWNER=your-github-username
+   AERO_CHAT_REPO_NAME=your-private-repo-name
+   AERO_CHAT_REPO_BRANCH=main  # or your target branch
+   ```
+
+3. **Repository URL Format**:
+   The docker-compose configuration automatically constructs the repository URL as:
+   ```
+   https://${GITHUB_TOKEN}@github.com/${AERO_CHAT_REPO_OWNER}/${AERO_CHAT_REPO_NAME}.git#${AERO_CHAT_REPO_BRANCH}
+   ```
+
+### Branch Selection
+You can specify any branch by changing the `AERO_CHAT_REPO_BRANCH` environment variable. This is useful for:
+- **Development**: `AERO_CHAT_REPO_BRANCH=develop`
+- **Features**: `AERO_CHAT_REPO_BRANCH=feature/new-functionality`
+- **Production**: `AERO_CHAT_REPO_BRANCH=main`
+
+### Alternative Approaches
+
+**Option 1: Local Clone** (if you prefer not to embed credentials):
+1. Clone the repository locally: `git clone git@github.com:your-username/your-private-repo.git ../aero-chat`
+2. Update the docker-compose.yaml context to: `context: ../aero-chat`
+
+**Option 2: SSH with Docker Buildkit**:
+```bash
+# Build with SSH agent forwarding
+DOCKER_BUILDKIT=1 docker compose build aero-chat --ssh default
+```
+
+**Security Note**: Be careful with tokens in environment files. Consider using Docker secrets or build-time secrets for production deployments. Never commit your `.env` file to version control.
+
 ## Troubleshooting
 
 *   **GPU Not Detected / CUDA Errors**:
@@ -133,6 +255,11 @@ The script will use the `POSTGRES_PASSWORD` from your environment or the `.env` 
     *   Ensure sufficient disk space in `hf_cache` and `ollama_data` volumes.
 *   **Flowise Connection Errors**: Double-check the URLs used in Flowise nodes – ensure they use the service names (e.g., `http://vllm:8000/v1`) and not `localhost`. Verify the target service is running (`docker ps`).
 *   **Langfuse Errors**: Check logs for all `langfuse-*` services and their dependencies (`postgres`, `redis`, `clickhouse`, `minio`). Ensure passwords in `.env` match those used by the services.
+*   **Aero Chat Build/Authentication Issues**:
+    *   **Private repo access**: Ensure your GitHub token has `repo` scope and the repository URL includes authentication
+    *   **MSAL configuration**: Verify `NEXT_PUBLIC_MSAL_CLIENT_ID` and `NEXT_PUBLIC_MSAL_TENANT_ID` are correctly set
+    *   **Database errors**: Check that the `/app/data` volume has proper write permissions
+    *   **Port conflicts**: If port 3001 is already in use, change `AERO_CHAT_PORT` in your `.env` file
 
 ## Customization
 
