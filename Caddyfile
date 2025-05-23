@@ -1,0 +1,55 @@
+# Aero Chat - Next.js app with MSAL authentication
+aero-chat.dentro-innovation.com {
+    reverse_proxy aero-chat:3000
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        # Remove server header
+        -Server
+        # Strict Transport Security
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://login.microsoftonline.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com; frame-src https://login.microsoftonline.com;"
+        # Other security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+
+# Flowise - No-code chat flow builder
+aero-flowise.dentro-innovation.com {
+    reverse_proxy flowise:3000
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+
+# Langfuse - LLM observability platform
+aero-langfuse.dentro-innovation.com {
+    reverse_proxy langfuse-web:3000
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+    }
+} 
