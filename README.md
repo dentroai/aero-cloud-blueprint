@@ -74,6 +74,8 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    FLOWISE_PASSWORD=your_flowise_password
    FLOWISE_CORS_ORIGINS=*
    FLOWISE_IFRAME_ORIGINS=*
+   FLOWISE_API_URL=http://flowise:3000
+   FLOWISE_FLOW_ID=633b4e7f-389d-45a9-9128-83e393a1181a
 
    # Aero Chat Configuration
    GITHUB_TOKEN=your_github_personal_access_token
@@ -303,3 +305,23 @@ DOCKER_BUILDKIT=1 docker compose build aero-chat --ssh default
 *   **Change Models**: Modify `VLLM_MODEL_NAME` and `OLLAMA_EMBEDDING_MODEL` in the `.env` file. Remember to restart the respective services (`docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml restart vllm ollama`). Ensure consistency if changing the embedding model (see Ollama details above).
 *   **Adjust Resources**: Modify GPU memory utilization (`VLLM_GPU_MEM_UTIL`) or max model length (`VLLM_MAX_MODEL_LEN`) in `.env`. For CPU/RAM limits (less common for these GPU-focused services), you would adjust the `deploy.resources` section in `docker-compose.yaml`.
 *   **Update Flowise/Langfuse**: Change the image tags or build contexts in `docker-compose.yaml` or `langfuse/docker-compose.langfuse.yaml`. Remember to run `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml build [service_name]` and `docker compose -f docker-compose.yaml -f langfuse/docker-compose.langfuse.yaml up -d`
+
+## Internal Service Communication
+
+**Docker Network Communication:**
+Services within the same Docker network can communicate directly using container names as hostnames. This is faster and more secure than using external URLs.
+
+**Aero Chat ↔ Flowise Communication:**
+- **External URL**: `https://aero-flowise.dentro-innovation.com` (for browser access)
+- **Internal URL**: `http://flowise:3000` (for aero-chat → flowise API calls)
+
+**Environment Variable:**
+```bash
+FLOWISE_API_URL=http://flowise:3000  # Internal Docker network communication
+```
+
+**Benefits of Internal Communication:**
+- **Faster**: No SSL overhead or external routing
+- **More Secure**: Traffic stays within Docker network
+- **More Reliable**: No dependency on external DNS or Caddy
+- **Lower Latency**: Direct container-to-container communication
