@@ -202,17 +202,37 @@ Here are the typical settings:
 
 ## Document Processing Pipeline
 
-The repository includes a document processing pipeline script to help you ingest documents into your RAG system:
+The repository includes a document processing pipeline script to help you ingest documents into your RAG system.
 
-```bash
-# Ensure your .env file has POSTGRES_PASSWORD set, or set it in your environment:
-# export POSTGRES_PASSWORD="your_postgres_password_here"
+**Prerequisites:**
 
+1.  **Install system dependencies**:
+    For `.docx` and PDF processing, you'll need LibreOffice and Poppler utilities. On Debian/Ubuntu-based systems, install them with:
+    ```bash
+    sudo apt-get update && sudo apt-get install -y libreoffice poppler-utils
+    ```
+
+2.  **Set up Python environment and install dependencies**:
+    Navigate to the `python-scripts` directory, install `uv` and create a virtual environment. Then, install the required Python packages using `uv`:
+    ```bash
+    cd python-scripts
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    uv venv
+    source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+    uv pip install -r requirements.txt # or: pip install -r requirements.txt if using pip instead of uv
+    ```
+
+**Run the ETL pipeline**:
+
+```
 cd python-scripts
 python3 etl.py \
     --docs-folder "../documents/" \
     --images-output "../documents/tmp/" \
-    --ollama-model "snowflake-arctic-embed2" \
+    --vllm-text-embedding-model "vllm-text-embedding-model" \
+    --vllm-text-embedding-endpoint "http://localhost:8001/v1" \
+    --vllm-image-embedding-model "vllm-image-embedding-model" \
+    --vllm-image-embedding-endpoint "http://localhost:8002/v1" \
     --postgres-host "localhost" \
     --postgres-port 5432 \
     --postgres-db "rag_db" \
