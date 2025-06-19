@@ -55,7 +55,7 @@ $$;
 -- Add this new function to postgres/init-pgvector.sql
 -- Make sure YOUR_IMAGE_EMBEDDING_DIMENSION matches your actual image embedding dimension
 CREATE OR REPLACE FUNCTION match_images_by_embedding (
-  query_embedding VECTOR(YOUR_IMAGE_EMBEDDING_DIMENSION), -- e.g., VECTOR(1024) or VECTOR(768)
+  query_embedding VECTOR(1536), -- e.g., VECTOR(1024) or VECTOR(768)
   match_count INT DEFAULT 3,
   filter JSONB DEFAULT '{}'
 ) RETURNS TABLE (

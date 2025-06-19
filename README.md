@@ -233,6 +233,7 @@ python3 etl.py \
     --vllm-text-embedding-endpoint "http://localhost:8001/v1" \
     --vllm-image-embedding-model "vllm-image-embedding-model" \
     --vllm-image-embedding-endpoint "http://localhost:8002/v1" \
+    --store-raw-images \
     --postgres-host "localhost" \
     --postgres-port 5432 \
     --postgres-db "rag_db" \
