@@ -74,8 +74,7 @@ A ready-to-use Docker setup for Retrieval Augmented Generation (RAG) projects th
    FLOWISE_PASSWORD=your_flowise_password
    FLOWISE_CORS_ORIGINS=*
    FLOWISE_IFRAME_ORIGINS=*
-   FLOWISE_API_URL=http://flowise:3000
-   FLOWISE_FLOW_ID=633b4e7f-389d-45a9-9128-83e393a1181a
+   FLOWISE_API_URL=http://flowise:3000/api/v1/prediction/58608cba-ab0a-4c91-b131-8b96f9ff5d2a
 
    # Aero Chat Configuration
    GITHUB_TOKEN=your_github_personal_access_token
@@ -338,7 +337,7 @@ Services within the same Docker network can communicate directly using container
 
 **Environment Variable:**
 ```bash
-FLOWISE_API_URL=http://flowise:3000  # Internal Docker network communication
+FLOWISE_API_URL=http://flowise:3000/api/v1/prediction/58608cba-ab0a-4c91-b131-8b96f9ff5d2a  # Internal Docker network communication
 ```
 
 **Benefits of Internal Communication:**

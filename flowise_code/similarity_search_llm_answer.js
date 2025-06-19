@@ -18,7 +18,7 @@ async function searchContextAndGenerateMultimodalResponse() {
   const dbHost = 'postgres';
   const dbPort = 5432;
   const dbUser = 'rag_user';
-  const dbPassword = 'arnoldalsostartedingraz'; // <-- IMPORTANT: Replace!
+  const dbPassword = 'arnoldalsostartedingraz';
   const dbName = 'rag_db';
   const textMatchCount = 5; // How many text chunks
   const imageMatchCount = 5; // How many images
@@ -27,42 +27,38 @@ async function searchContextAndGenerateMultimodalResponse() {
   // --- Hardcoded vLLM LLM (Multi-modal) Configuration ---
   const llmHost = 'vllm_llm';
   const llmPort = 8000;
-  const llmModelName = 'vllm-llm-model'; // Example, use your actual model
+  const llmModelName = 'vllm-llm-model';
   const maxOutputTokens = 5000;
   const llmTemp = 0.3;
 
   // Basic input validation
   if (!inputTextEmbeddingString || !inputImageEmbeddingString || !question) {
     console.error("Text embedding, image embedding, or user question is missing.");
-    return JSON.stringify({ 
-      error: "Missing required inputs for combined search and LLM call.",
-      llm_answer: null,
-      text_sources: [],
-      image_sources: []
-    });
-  }
-  if (dbPassword === 'YOUR_POSTGRES_PASSWORD') {
-    console.error("CRITICAL: Default PostgreSQL password is still in the script. Please replace it!");
-    return JSON.stringify({ 
-      error: "PostgreSQL password not configured in the script.",
-      llm_answer: null,
-      text_sources: [],
-      image_sources: []
-    });
+    // Return the response in the expected format
+    return {
+      text: JSON.stringify({ 
+        error: "Missing required inputs for combined search and LLM call.",
+        llm_answer: "Missing required inputs for combined search and LLM call.",
+        text_sources: [],
+        image_sources: []
+      })
+    };
   }
 
   let textEmbeddingVector, imageEmbeddingVector;
   try {
     textEmbeddingVector = JSON.parse(inputTextEmbeddingString);
-    imageEmbeddingVector = JSON.parse(inputImageEmbeddingString); // Parse new input
+    imageEmbeddingVector = JSON.parse(inputImageEmbeddingString);
   } catch (e) {
     console.error("Failed to parse one or both embedding strings:", e);
-    return JSON.stringify({ 
-      error: `Invalid embedding vector format: ${e.message}`,
-      llm_answer: null,
-      text_sources: [],
-      image_sources: []
-    });
+    return {
+      text: JSON.stringify({ 
+        error: `Invalid embedding vector format: ${e.message}`,
+        llm_answer: `Invalid embedding vector format: ${e.message}`,
+        text_sources: [],
+        image_sources: []
+      })
+    };
   }
 
   let dbFilter;
@@ -70,12 +66,14 @@ async function searchContextAndGenerateMultimodalResponse() {
     dbFilter = JSON.parse(dbFilterJsonString);
   } catch (e) {
     console.error("Failed to parse dbFilterJsonString:", e);
-    return JSON.stringify({ 
-      error: `Invalid DB filter JSON format: ${e.message}`,
-      llm_answer: null,
-      text_sources: [],
-      image_sources: []
-    });
+    return {
+      text: JSON.stringify({ 
+        error: `Invalid DB filter JSON format: ${e.message}`,
+        llm_answer: `Invalid DB filter JSON format: ${e.message}`,
+        text_sources: [],
+        image_sources: []
+      })
+    };
   }
 
   const pool = new Pool({ user: dbUser, host: dbHost, database: dbName, password: dbPassword, port: dbPort });
@@ -90,24 +88,33 @@ async function searchContextAndGenerateMultimodalResponse() {
     // --- 1a. Text Similarity Search ---
     console.log("Step 1a: Performing TEXT similarity search...");
     const queryTextEmbeddingSql = JSON.stringify(textEmbeddingVector);
-    const sqlTextQuery = `SELECT "pageContent" FROM match_documents($1, $2, $3);`; // Only need pageContent
+    const sqlTextQuery = `SELECT "pageContent", metadata FROM match_documents($1, $2, $3);`;
     const textRes = await client.query(sqlTextQuery, [queryTextEmbeddingSql, textMatchCount, dbFilter]);
     
     if (textRes.rows && textRes.rows.length > 0) {
-      retrievedTextContext = textRes.rows.map(row => {
-          const contentKey = Object.keys(row).find(key => key.toLowerCase() === 'pagecontent');
-          const content = contentKey ? row[contentKey] : '';
+      const textChunks = [];
+      textRes.rows.forEach((row, index) => {
+        const contentKey = Object.keys(row).find(key => key.toLowerCase() === 'pagecontent');
+        const content = contentKey ? row[contentKey] : '';
+        
+        if (content) {
+          textChunks.push(content);
           
-          // Add to text sources
-          if (content) {
-            textSources.push({
-              content: content,
-              type: 'text'
-            });
-          }
-          
-          return content;
-      }).join("\n\n---\n\n");
+          // Create properly formatted text source
+          textSources.push({
+            id: `text-source-${index + 1}`,
+            title: row.metadata?.title || row.metadata?.source || `Textquelle ${index + 1}`,
+            content: content,
+            pageContent: content, // Include both for compatibility
+            page: row.metadata?.page_number?.toString() || row.metadata?.page || undefined,
+            lastUpdated: row.metadata?.lastUpdated || undefined,
+            url: row.metadata?.url || undefined,
+            metadata: row.metadata || {}
+          });
+        }
+      });
+      
+      retrievedTextContext = textChunks.join("\n\n---\n\n");
       console.log(`Retrieved ${textRes.rows.length} text chunks.`);
     } else {
       console.log("No text chunks retrieved.");
@@ -116,22 +123,28 @@ async function searchContextAndGenerateMultimodalResponse() {
     // --- 1b. Image Similarity Search using the new image embedding ---
     console.log("Step 1b: Performing IMAGE similarity search...");
     const queryImageEmbeddingSql = JSON.stringify(imageEmbeddingVector);
-    // IMPORTANT: Use the new SQL function `match_images_by_embedding`
-    const sqlImageQuery = `SELECT id, "image_data" FROM match_images_by_embedding($1, $2, $3);`;
+    const sqlImageQuery = `SELECT id, "image_data", metadata FROM match_images_by_embedding($1, $2, $3);`;
     const imageRes = await client.query(sqlImageQuery, [queryImageEmbeddingSql, imageMatchCount, dbFilter]);
 
     if (imageRes.rows && imageRes.rows.length > 0) {
-      imageRes.rows.forEach(row => {
+      imageRes.rows.forEach((row, index) => {
         if (row.image_data && row.image_data.length > 0) {
-          const dataUri = imageBytesToDataUri(row.image_data, 'image/jpeg'); // Assuming JPEG
+          const dataUri = imageBytesToDataUri(row.image_data, 'image/jpeg');
           if (dataUri) {
             llmImageInputs.push({ type: "image_url", image_url: { "url": dataUri } });
             
-            // Add to image sources
+            // Create properly formatted image source
             imageSources.push({
-              id: row.id,
-              data_uri: dataUri,
-              type: 'image'
+              id: row.id || `image-source-${index + 1}`,
+              base64: dataUri,
+              image_base64_data_uri: dataUri, // Include this field for compatibility
+              metadata: {
+                file_name: row.metadata?.file_name || `Bild ${index + 1}`,
+                file_path: row.metadata?.file_path || undefined,
+                page_number: row.metadata?.page_number || undefined,
+                original_timestamp: row.metadata?.original_timestamp || undefined,
+                ...row.metadata
+              }
             });
             
             console.log(`Processed image data for ID ${row.id} into data URI.`);
@@ -146,12 +159,9 @@ async function searchContextAndGenerateMultimodalResponse() {
   } catch (err) {
     console.error('Error during PostgreSQL search operations:', err.stack);
     retrievedTextContext = retrievedTextContext === "Keine spezifischen Textinformationen gefunden." ? `Fehler bei Textsuche: ${err.message}` : retrievedTextContext;
-    if (llmImageInputs.length === 0) {
-        console.warn("Proceeding without images due to DB error or no results.");
-    }
   } finally {
     client.release();
-    await pool.end(); // Important to close the pool after all DB ops
+    await pool.end();
     console.log("PostgreSQL client released and pool ended.");
   }
 
@@ -172,7 +182,7 @@ ${conversationHistory}
 Frage des Benutzers: ${question}`;
 
   const llmApiContent = [{ type: "text", text: combinedTextPromptForLLM }];
-  llmImageInputs.forEach(imgContent => llmApiContent.push(imgContent)); // Add processed images
+  llmImageInputs.forEach(imgContent => llmApiContent.push(imgContent));
 
   const llmApiUrl = `http://${llmHost}:${llmPort}/v1/chat/completions`;
   const llmPayload = {
@@ -194,39 +204,45 @@ Frage des Benutzers: ${question}`;
     if (!llmResponse.ok) {
       const errorBody = await llmResponse.text();
       console.error(`LLM API error! Status: ${llmResponse.status}, Body: ${errorBody}`);
-      return JSON.stringify({ 
-        error: `LLM API request failed: ${llmResponse.status} - ${errorBody}`,
-        llm_answer: null,
-        text_sources: textSources,
-        image_sources: imageSources
-      });
+      return {
+        text: JSON.stringify({ 
+          error: `LLM API request failed: ${llmResponse.status} - ${errorBody}`,
+          llm_answer: `LLM API request failed: ${llmResponse.status}`,
+          text_sources: textSources,
+          image_sources: imageSources
+        })
+      };
     }
     
     const responseData = await llmResponse.json();
     if (responseData && responseData.choices && responseData.choices.length > 0 && responseData.choices[0].message && responseData.choices[0].message.content) {
-      // Return structured JSON response
-      return JSON.stringify({
+      // The chat app expects the response in the 'text' field as a JSON string
+      return {
         llm_answer: responseData.choices[0].message.content,
         text_sources: textSources,
         image_sources: imageSources
-      });
+      };
     } else {
       console.error("LLM response format incorrect or content missing:", responseData);
-      return JSON.stringify({ 
-        error: "LLM response format incorrect or content missing.",
-        llm_answer: null,
-        text_sources: textSources,
-        image_sources: imageSources
-      });
+      return {
+        text: JSON.stringify({ 
+          error: "LLM response format incorrect or content missing.",
+          llm_answer: "LLM response format incorrect or content missing.",
+          text_sources: textSources,
+          image_sources: imageSources
+        })
+      };
     }
   } catch (error) {
     console.error("Error calling LLM API:", error);
-    return JSON.stringify({ 
-      error: `Error during LLM API call: ${error.message}`,
-      llm_answer: null,
-      text_sources: textSources,
-      image_sources: imageSources
-    });
+    return {
+      text: JSON.stringify({ 
+        error: `Error during LLM API call: ${error.message}`,
+        llm_answer: `Error during LLM API call: ${error.message}`,
+        text_sources: textSources,
+        image_sources: imageSources
+      })
+    };
   }
 }
 

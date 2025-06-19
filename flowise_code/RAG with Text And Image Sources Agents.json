@@ -1,0 +1,940 @@
+{
+  "nodes": [
+    {
+      "id": "startAgentflow_0",
+      "position": {
+        "x": -363,
+        "y": 119.75
+      },
+      "data": {
+        "id": "startAgentflow_0",
+        "label": "Start",
+        "version": 1.1,
+        "name": "startAgentflow",
+        "type": "Start",
+        "color": "#7EE787",
+        "hideInput": true,
+        "baseClasses": [
+          "Start"
+        ],
+        "category": "Agent Flows",
+        "description": "Starting point of the agentflow",
+        "inputParams": [
+          {
+            "label": "Input Type",
+            "name": "startInputType",
+            "type": "options",
+            "options": [
+              {
+                "label": "Chat Input",
+                "name": "chatInput",
+                "description": "Start the conversation with chat input"
+              },
+              {
+                "label": "Form Input",
+                "name": "formInput",
+                "description": "Start the workflow with form inputs"
+              }
+            ],
+            "default": "chatInput",
+            "id": "startAgentflow_0-input-startInputType-options",
+            "display": true
+          },
+          {
+            "label": "Form Title",
+            "name": "formTitle",
+            "type": "string",
+            "placeholder": "Please Fill Out The Form",
+            "show": {
+              "startInputType": "formInput"
+            },
+            "id": "startAgentflow_0-input-formTitle-string",
+            "display": true
+          },
+          {
+            "label": "Form Description",
+            "name": "formDescription",
+            "type": "string",
+            "placeholder": "Complete all fields below to continue",
+            "show": {
+              "startInputType": "formInput"
+            },
+            "id": "startAgentflow_0-input-formDescription-string",
+            "display": true
+          },
+          {
+            "label": "Form Input Types",
+            "name": "formInputTypes",
+            "description": "Specify the type of form input",
+            "type": "array",
+            "show": {
+              "startInputType": "formInput"
+            },
+            "array": [
+              {
+                "label": "Type",
+                "name": "type",
+                "type": "options",
+                "options": [
+                  {
+                    "label": "String",
+                    "name": "string"
+                  },
+                  {
+                    "label": "Number",
+                    "name": "number"
+                  },
+                  {
+                    "label": "Boolean",
+                    "name": "boolean"
+                  },
+                  {
+                    "label": "Options",
+                    "name": "options"
+                  }
+                ],
+                "default": "string"
+              },
+              {
+                "label": "Label",
+                "name": "label",
+                "type": "string",
+                "placeholder": "Label for the input"
+              },
+              {
+                "label": "Variable Name",
+                "name": "name",
+                "type": "string",
+                "placeholder": "Variable name for the input (must be camel case)",
+                "description": "Variable name must be camel case. For example: firstName, lastName, etc."
+              },
+              {
+                "label": "Add Options",
+                "name": "addOptions",
+                "type": "array",
+                "show": {
+                  "formInputTypes[$index].type": "options"
+                },
+                "array": [
+                  {
+                    "label": "Option",
+                    "name": "option",
+                    "type": "string"
+                  }
+                ]
+              }
+            ],
+            "id": "startAgentflow_0-input-formInputTypes-array",
+            "display": true
+          },
+          {
+            "label": "Ephemeral Memory",
+            "name": "startEphemeralMemory",
+            "type": "boolean",
+            "description": "Start fresh for every execution without past chat history",
+            "optional": true,
+            "id": "startAgentflow_0-input-startEphemeralMemory-boolean",
+            "display": true
+          },
+          {
+            "label": "Flow State",
+            "name": "startState",
+            "description": "Runtime state during the execution of the workflow",
+            "type": "array",
+            "optional": true,
+            "array": [
+              {
+                "label": "Key",
+                "name": "key",
+                "type": "string",
+                "placeholder": "Foo"
+              },
+              {
+                "label": "Value",
+                "name": "value",
+                "type": "string",
+                "placeholder": "Bar",
+                "optional": true
+              }
+            ],
+            "id": "startAgentflow_0-input-startState-array",
+            "display": true
+          },
+          {
+            "label": "Persist State",
+            "name": "startPersistState",
+            "type": "boolean",
+            "description": "Persist the state in the same session",
+            "optional": true,
+            "id": "startAgentflow_0-input-startPersistState-boolean",
+            "display": true
+          }
+        ],
+        "inputAnchors": [],
+        "inputs": {
+          "startInputType": "formInput",
+          "startEphemeralMemory": "",
+          "startState": "",
+          "startPersistState": "",
+          "formTitle": "Form Input ",
+          "formDescription": "user message and history of conversation",
+          "formInputTypes": [
+            {
+              "type": "string",
+              "label": "userMessage",
+              "name": "userMessage",
+              "addOptions": ""
+            },
+            {
+              "type": "string",
+              "label": "conversationHistory",
+              "name": "conversationHistory",
+              "addOptions": ""
+            }
+          ]
+        },
+        "outputAnchors": [
+          {
+            "id": "startAgentflow_0-output-startAgentflow",
+            "label": "Start",
+            "name": "startAgentflow"
+          }
+        ],
+        "outputs": {},
+        "selected": false
+      },
+      "type": "agentFlow",
+      "width": 103,
+      "height": 66,
+      "positionAbsolute": {
+        "x": -363,
+        "y": 119.75
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "llmAgentflow_1",
+      "position": {
+        "x": -217,
+        "y": 117
+      },
+      "data": {
+        "id": "llmAgentflow_1",
+        "label": "Get Retrieval Query",
+        "version": 1,
+        "name": "llmAgentflow",
+        "type": "LLM",
+        "color": "#64B5F6",
+        "baseClasses": [
+          "LLM"
+        ],
+        "category": "Agent Flows",
+        "description": "Large language models to analyze user-provided inputs and generate responses",
+        "inputParams": [
+          {
+            "label": "Model",
+            "name": "llmModel",
+            "type": "asyncOptions",
+            "loadMethod": "listModels",
+            "loadConfig": true,
+            "id": "llmAgentflow_1-input-llmModel-asyncOptions",
+            "display": true
+          },
+          {
+            "label": "Messages",
+            "name": "llmMessages",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Role",
+                "name": "role",
+                "type": "options",
+                "options": [
+                  {
+                    "label": "System",
+                    "name": "system"
+                  },
+                  {
+                    "label": "Assistant",
+                    "name": "assistant"
+                  },
+                  {
+                    "label": "Developer",
+                    "name": "developer"
+                  },
+                  {
+                    "label": "User",
+                    "name": "user"
+                  }
+                ]
+              },
+              {
+                "label": "Content",
+                "name": "content",
+                "type": "string",
+                "acceptVariable": true,
+                "generateInstruction": true,
+                "rows": 4
+              }
+            ],
+            "id": "llmAgentflow_1-input-llmMessages-array",
+            "display": true
+          },
+          {
+            "label": "Enable Memory",
+            "name": "llmEnableMemory",
+            "type": "boolean",
+            "description": "Enable memory for the conversation thread",
+            "default": true,
+            "optional": true,
+            "id": "llmAgentflow_1-input-llmEnableMemory-boolean",
+            "display": true
+          },
+          {
+            "label": "Memory Type",
+            "name": "llmMemoryType",
+            "type": "options",
+            "options": [
+              {
+                "label": "All Messages",
+                "name": "allMessages",
+                "description": "Retrieve all messages from the conversation"
+              },
+              {
+                "label": "Window Size",
+                "name": "windowSize",
+                "description": "Uses a fixed window size to surface the last N messages"
+              },
+              {
+                "label": "Conversation Summary",
+                "name": "conversationSummary",
+                "description": "Summarizes the whole conversation"
+              },
+              {
+                "label": "Conversation Summary Buffer",
+                "name": "conversationSummaryBuffer",
+                "description": "Summarize conversations once token limit is reached. Default to 2000"
+              }
+            ],
+            "optional": true,
+            "default": "allMessages",
+            "show": {
+              "llmEnableMemory": true
+            },
+            "id": "llmAgentflow_1-input-llmMemoryType-options",
+            "display": true
+          },
+          {
+            "label": "Window Size",
+            "name": "llmMemoryWindowSize",
+            "type": "number",
+            "default": "20",
+            "description": "Uses a fixed window size to surface the last N messages",
+            "show": {
+              "llmMemoryType": "windowSize"
+            },
+            "id": "llmAgentflow_1-input-llmMemoryWindowSize-number",
+            "display": false
+          },
+          {
+            "label": "Max Token Limit",
+            "name": "llmMemoryMaxTokenLimit",
+            "type": "number",
+            "default": "2000",
+            "description": "Summarize conversations once token limit is reached. Default to 2000",
+            "show": {
+              "llmMemoryType": "conversationSummaryBuffer"
+            },
+            "id": "llmAgentflow_1-input-llmMemoryMaxTokenLimit-number",
+            "display": false
+          },
+          {
+            "label": "Input Message",
+            "name": "llmUserMessage",
+            "type": "string",
+            "description": "Add an input message as user message at the end of the conversation",
+            "rows": 4,
+            "optional": true,
+            "acceptVariable": true,
+            "show": {
+              "llmEnableMemory": true
+            },
+            "id": "llmAgentflow_1-input-llmUserMessage-string",
+            "display": true
+          },
+          {
+            "label": "Return Response As",
+            "name": "llmReturnResponseAs",
+            "type": "options",
+            "options": [
+              {
+                "label": "User Message",
+                "name": "userMessage"
+              },
+              {
+                "label": "Assistant Message",
+                "name": "assistantMessage"
+              }
+            ],
+            "default": "userMessage",
+            "id": "llmAgentflow_1-input-llmReturnResponseAs-options",
+            "display": true
+          },
+          {
+            "label": "JSON Structured Output",
+            "name": "llmStructuredOutput",
+            "description": "Instruct the LLM to give output in a JSON structured schema",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Key",
+                "name": "key",
+                "type": "string"
+              },
+              {
+                "label": "Type",
+                "name": "type",
+                "type": "options",
+                "options": [
+                  {
+                    "label": "String",
+                    "name": "string"
+                  },
+                  {
+                    "label": "String Array",
+                    "name": "stringArray"
+                  },
+                  {
+                    "label": "Number",
+                    "name": "number"
+                  },
+                  {
+                    "label": "Boolean",
+                    "name": "boolean"
+                  },
+                  {
+                    "label": "Enum",
+                    "name": "enum"
+                  },
+                  {
+                    "label": "JSON Array",
+                    "name": "jsonArray"
+                  }
+                ]
+              },
+              {
+                "label": "Enum Values",
+                "name": "enumValues",
+                "type": "string",
+                "placeholder": "value1, value2, value3",
+                "description": "Enum values. Separated by comma",
+                "optional": true,
+                "show": {
+                  "llmStructuredOutput[$index].type": "enum"
+                }
+              },
+              {
+                "label": "JSON Schema",
+                "name": "jsonSchema",
+                "type": "code",
+                "placeholder": "{\n    \"answer\": {\n        \"type\": \"string\",\n        \"description\": \"Value of the answer\"\n    },\n    \"reason\": {\n        \"type\": \"string\",\n        \"description\": \"Reason for the answer\"\n    },\n    \"optional\": {\n        \"type\": \"boolean\"\n    },\n    \"count\": {\n        \"type\": \"number\"\n    },\n    \"children\": {\n        \"type\": \"array\",\n        \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"value\": {\n                    \"type\": \"string\",\n                    \"description\": \"Value of the children's answer\"\n                }\n            }\n        }\n    }\n}",
+                "description": "JSON schema for the structured output",
+                "optional": true,
+                "show": {
+                  "llmStructuredOutput[$index].type": "jsonArray"
+                }
+              },
+              {
+                "label": "Description",
+                "name": "description",
+                "type": "string",
+                "placeholder": "Description of the key"
+              }
+            ],
+            "id": "llmAgentflow_1-input-llmStructuredOutput-array",
+            "display": true
+          },
+          {
+            "label": "Update Flow State",
+            "name": "llmUpdateState",
+            "description": "Update runtime state during the execution of the workflow",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Key",
+                "name": "key",
+                "type": "asyncOptions",
+                "loadMethod": "listRuntimeStateKeys",
+                "freeSolo": true
+              },
+              {
+                "label": "Value",
+                "name": "value",
+                "type": "string",
+                "acceptVariable": true,
+                "acceptNodeOutputAsVariable": true
+              }
+            ],
+            "id": "llmAgentflow_1-input-llmUpdateState-array",
+            "display": true
+          }
+        ],
+        "inputAnchors": [],
+        "inputs": {
+          "llmModel": "chatOpenAICustom",
+          "llmMessages": [
+            {
+              "role": "system",
+              "content": "<p>Es gibt eine bestehende Konversation:</p><p><span class=\"variable\" data-type=\"mention\" data-id=\"$form.conversationHistory\" data-label=\"$form.conversationHistory\">{{ $form.conversationHistory }}</span> </p><p></p><p>Formuliere die Nachricht in eine kurze eigenständige Frage um ohne den Kern zu verändern:</p><p><span class=\"variable\" data-type=\"mention\" data-id=\"$form.userMessage\" data-label=\"$form.userMessage\">{{ $form.userMessage }}</span> </p>"
+            }
+          ],
+          "llmEnableMemory": true,
+          "llmMemoryType": "allMessages",
+          "llmUserMessage": "<p></p>",
+          "llmReturnResponseAs": "assistantMessage",
+          "llmStructuredOutput": "",
+          "llmUpdateState": "",
+          "llmModelConfig": {
+            "cache": "",
+            "modelName": "vllm-llm-model",
+            "temperature": "0.3",
+            "streaming": true,
+            "maxTokens": "",
+            "topP": "",
+            "frequencyPenalty": "",
+            "presencePenalty": "",
+            "timeout": "",
+            "basepath": "http://vllm_llm:8000/v1",
+            "baseOptions": "",
+            "llmModel": "chatOpenAICustom"
+          },
+          "undefined": ""
+        },
+        "outputAnchors": [
+          {
+            "id": "llmAgentflow_1-output-llmAgentflow",
+            "label": "LLM",
+            "name": "llmAgentflow"
+          }
+        ],
+        "outputs": {},
+        "selected": false
+      },
+      "type": "agentFlow",
+      "width": 199,
+      "height": 72,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -217,
+        "y": 117
+      },
+      "dragging": false
+    },
+    {
+      "id": "customFunctionAgentflow_0",
+      "position": {
+        "x": 436.73495420159816,
+        "y": 76.0775708117976
+      },
+      "data": {
+        "id": "customFunctionAgentflow_0",
+        "label": "Similarity Search + LLM Answer",
+        "version": 1,
+        "name": "customFunctionAgentflow",
+        "type": "CustomFunction",
+        "color": "#E4B7FF",
+        "baseClasses": [
+          "CustomFunction"
+        ],
+        "category": "Agent Flows",
+        "description": "Execute custom function",
+        "inputParams": [
+          {
+            "label": "Input Variables",
+            "name": "customFunctionInputVariables",
+            "description": "Input variables can be used in the function with prefix $. For example: $foo",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Variable Name",
+                "name": "variableName",
+                "type": "string"
+              },
+              {
+                "label": "Variable Value",
+                "name": "variableValue",
+                "type": "string",
+                "acceptVariable": true
+              }
+            ],
+            "id": "customFunctionAgentflow_0-input-customFunctionInputVariables-array",
+            "display": true
+          },
+          {
+            "label": "Javascript Function",
+            "name": "customFunctionJavascriptFunction",
+            "type": "code",
+            "codeExample": "/*\n* You can use any libraries imported in Flowise\n* You can use properties specified in Input Schema as variables. Ex: Property = userid, Variable = $userid\n* You can get default flow config: $flow.sessionId, $flow.chatId, $flow.chatflowId, $flow.input, $flow.state\n* You can get custom variables: $vars.<variable-name>\n* Must return a string value at the end of function\n*/\n\nconst fetch = require('node-fetch');\nconst url = 'https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true';\nconst options = {\n    method: 'GET',\n    headers: {\n        'Content-Type': 'application/json'\n    }\n};\ntry {\n    const response = await fetch(url, options);\n    const text = await response.text();\n    return text;\n} catch (error) {\n    console.error(error);\n    return '';\n}",
+            "description": "The function to execute. Must return a string or an object that can be converted to a string.",
+            "id": "customFunctionAgentflow_0-input-customFunctionJavascriptFunction-code",
+            "display": true
+          },
+          {
+            "label": "Update Flow State",
+            "name": "customFunctionUpdateState",
+            "description": "Update runtime state during the execution of the workflow",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Key",
+                "name": "key",
+                "type": "asyncOptions",
+                "loadMethod": "listRuntimeStateKeys",
+                "freeSolo": true
+              },
+              {
+                "label": "Value",
+                "name": "value",
+                "type": "string",
+                "acceptVariable": true,
+                "acceptNodeOutputAsVariable": true
+              }
+            ],
+            "id": "customFunctionAgentflow_0-input-customFunctionUpdateState-array",
+            "display": true
+          }
+        ],
+        "inputAnchors": [],
+        "inputs": {
+          "customFunctionInputVariables": [
+            {
+              "variableName": "userQuestion",
+              "variableValue": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"$form.userMessage\" data-label=\"$form.userMessage\">{{ $form.userMessage }}</span> </p>"
+            },
+            {
+              "variableName": "textEmbeddingVectorString",
+              "variableValue": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"customFunctionAgentflow_1\" data-label=\"customFunctionAgentflow_1\">{{ customFunctionAgentflow_1 }}</span> </p>"
+            },
+            {
+              "variableName": "imageEmbeddingVectorString",
+              "variableValue": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"customFunctionAgentflow_2\" data-label=\"customFunctionAgentflow_2\">{{ customFunctionAgentflow_2 }}</span> </p>"
+            },
+            {
+              "variableName": "conversationHistory",
+              "variableValue": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"$form.conversationHistory\" data-label=\"$form.conversationHistory\">{{ $form.conversationHistory }}</span> </p>"
+            }
+          ],
+          "customFunctionJavascriptFunction": "const fetch = require('node-fetch');\nconst { Pool } = require('pg');\n\n// Helper function (same as before)\nfunction imageBytesToDataUri(imageBuffer, mimeType = 'image/jpeg') {\n  if (!imageBuffer || imageBuffer.length === 0) return null;\n  return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;\n}\n\nasync function searchContextAndGenerateMultimodalResponse() {\n  // --- Inputs from Flowise ---\n  const inputTextEmbeddingString = $textEmbeddingVectorString;\n  const inputImageEmbeddingString = $imageEmbeddingVectorString;\n  const question = $userQuestion;\n  const conversationHistory = $conversationHistory;\n\n  // --- Hardcoded PostgreSQL Configuration ---\n  const dbHost = 'postgres';\n  const dbPort = 5432;\n  const dbUser = 'rag_user';\n  const dbPassword = 'arnoldalsostartedingraz';\n  const dbName = 'rag_db';\n  const textMatchCount = 5; // How many text chunks\n  const imageMatchCount = 5; // How many images\n  const dbFilterJsonString = '{}';\n\n  // --- Hardcoded vLLM LLM (Multi-modal) Configuration ---\n  const llmHost = 'vllm_llm';\n  const llmPort = 8000;\n  const llmModelName = 'vllm-llm-model';\n  const maxOutputTokens = 5000;\n  const llmTemp = 0.3;\n\n  // Basic input validation\n  if (!inputTextEmbeddingString || !inputImageEmbeddingString || !question) {\n    console.error(\"Text embedding, image embedding, or user question is missing.\");\n    // Return the response in the expected format\n    return {\n      text: JSON.stringify({ \n        error: \"Missing required inputs for combined search and LLM call.\",\n        llm_answer: \"Missing required inputs for combined search and LLM call.\",\n        text_sources: [],\n        image_sources: []\n      })\n    };\n  }\n\n  let textEmbeddingVector, imageEmbeddingVector;\n  try {\n    textEmbeddingVector = JSON.parse(inputTextEmbeddingString);\n    imageEmbeddingVector = JSON.parse(inputImageEmbeddingString);\n  } catch (e) {\n    console.error(\"Failed to parse one or both embedding strings:\", e);\n    return {\n      text: JSON.stringify({ \n        error: `Invalid embedding vector format: ${e.message}`,\n        llm_answer: `Invalid embedding vector format: ${e.message}`,\n        text_sources: [],\n        image_sources: []\n      })\n    };\n  }\n\n  let dbFilter;\n  try {\n    dbFilter = JSON.parse(dbFilterJsonString);\n  } catch (e) {\n    console.error(\"Failed to parse dbFilterJsonString:\", e);\n    return {\n      text: JSON.stringify({ \n        error: `Invalid DB filter JSON format: ${e.message}`,\n        llm_answer: `Invalid DB filter JSON format: ${e.message}`,\n        text_sources: [],\n        image_sources: []\n      })\n    };\n  }\n\n  const pool = new Pool({ user: dbUser, host: dbHost, database: dbName, password: dbPassword, port: dbPort });\n  const client = await pool.connect();\n\n  let retrievedTextContext = \"Keine spezifischen Textinformationen gefunden.\";\n  const llmImageInputs = []; // To store base64 image URIs for the LLM\n  const textSources = []; // To store text sources for response\n  const imageSources = []; // To store image sources for response\n\n  try {\n    // --- 1a. Text Similarity Search ---\n    console.log(\"Step 1a: Performing TEXT similarity search...\");\n    const queryTextEmbeddingSql = JSON.stringify(textEmbeddingVector);\n    const sqlTextQuery = `SELECT \"pageContent\", metadata FROM match_documents($1, $2, $3);`;\n    const textRes = await client.query(sqlTextQuery, [queryTextEmbeddingSql, textMatchCount, dbFilter]);\n    \n    if (textRes.rows && textRes.rows.length > 0) {\n      const textChunks = [];\n      textRes.rows.forEach((row, index) => {\n        const contentKey = Object.keys(row).find(key => key.toLowerCase() === 'pagecontent');\n        const content = contentKey ? row[contentKey] : '';\n        \n        if (content) {\n          textChunks.push(content);\n          \n          // Create properly formatted text source\n          textSources.push({\n            id: `text-source-${index + 1}`,\n            title: row.metadata?.title || row.metadata?.source || `Textquelle ${index + 1}`,\n            content: content,\n            pageContent: content, // Include both for compatibility\n            page: row.metadata?.page_number?.toString() || row.metadata?.page || undefined,\n            lastUpdated: row.metadata?.lastUpdated || undefined,\n            url: row.metadata?.url || undefined,\n            metadata: row.metadata || {}\n          });\n        }\n      });\n      \n      retrievedTextContext = textChunks.join(\"\\n\\n---\\n\\n\");\n      console.log(`Retrieved ${textRes.rows.length} text chunks.`);\n    } else {\n      console.log(\"No text chunks retrieved.\");\n    }\n\n    // --- 1b. Image Similarity Search using the new image embedding ---\n    console.log(\"Step 1b: Performing IMAGE similarity search...\");\n    const queryImageEmbeddingSql = JSON.stringify(imageEmbeddingVector);\n    const sqlImageQuery = `SELECT id, \"image_data\", metadata FROM match_images_by_embedding($1, $2, $3);`;\n    const imageRes = await client.query(sqlImageQuery, [queryImageEmbeddingSql, imageMatchCount, dbFilter]);\n\n    if (imageRes.rows && imageRes.rows.length > 0) {\n      imageRes.rows.forEach((row, index) => {\n        if (row.image_data && row.image_data.length > 0) {\n          const dataUri = imageBytesToDataUri(row.image_data, 'image/jpeg');\n          if (dataUri) {\n            llmImageInputs.push({ type: \"image_url\", image_url: { \"url\": dataUri } });\n            \n            // Create properly formatted image source\n            imageSources.push({\n              id: row.id || `image-source-${index + 1}`,\n              base64: dataUri,\n              image_base64_data_uri: dataUri, // Include this field for compatibility\n              metadata: {\n                file_name: row.metadata?.file_name || `Bild ${index + 1}`,\n                file_path: row.metadata?.file_path || undefined,\n                page_number: row.metadata?.page_number || undefined,\n                original_timestamp: row.metadata?.original_timestamp || undefined,\n                ...row.metadata\n              }\n            });\n            \n            console.log(`Processed image data for ID ${row.id} into data URI.`);\n          }\n        }\n      });\n      console.log(`Retrieved ${imageRes.rows.length} rows from image search. Processed ${llmImageInputs.length} images for LLM.`);\n    } else {\n      console.log(\"No images retrieved from image similarity search.\");\n    }\n\n  } catch (err) {\n    console.error('Error during PostgreSQL search operations:', err.stack);\n    retrievedTextContext = retrievedTextContext === \"Keine spezifischen Textinformationen gefunden.\" ? `Fehler bei Textsuche: ${err.message}` : retrievedTextContext;\n  } finally {\n    client.release();\n    await pool.end();\n    console.log(\"PostgreSQL client released and pool ended.\");\n  }\n\n  // --- 2. Call vLLM Multi-modal LLM ---\n  console.log(\"Step 2: Calling vLLM Multi-modal LLM...\");\n  const combinedTextPromptForLLM = `Du bist ein hilfsbereiter Assistent. Beantworte die Frage des Benutzers basierend auf dem folgenden Textkontext und den bereitgestellten Bildern. Wenn der Kontext nicht ausreicht, teile dies mit.\n\nTextkontext:\n---\n${retrievedTextContext}\n---\n\nBestehende Konversation:\n---\n${conversationHistory}\n---\n\nFrage des Benutzers: ${question}`;\n\n  const llmApiContent = [{ type: \"text\", text: combinedTextPromptForLLM }];\n  llmImageInputs.forEach(imgContent => llmApiContent.push(imgContent));\n\n  const llmApiUrl = `http://${llmHost}:${llmPort}/v1/chat/completions`;\n  const llmPayload = {\n    model: llmModelName,\n    messages: [{ role: \"user\", content: llmApiContent }],\n    temperature: llmTemp,\n    max_tokens: maxOutputTokens\n  };\n\n  console.log(\"Sending payload to LLM (first 1000 chars):\", JSON.stringify(llmPayload, null, 2).substring(0, 1000) + \"...\");\n\n  try {\n    const llmResponse = await fetch(llmApiUrl, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(llmPayload)\n    });\n\n    if (!llmResponse.ok) {\n      const errorBody = await llmResponse.text();\n      console.error(`LLM API error! Status: ${llmResponse.status}, Body: ${errorBody}`);\n      return {\n        text: JSON.stringify({ \n          error: `LLM API request failed: ${llmResponse.status} - ${errorBody}`,\n          llm_answer: `LLM API request failed: ${llmResponse.status}`,\n          text_sources: textSources,\n          image_sources: imageSources\n        })\n      };\n    }\n    \n    const responseData = await llmResponse.json();\n    if (responseData && responseData.choices && responseData.choices.length > 0 && responseData.choices[0].message && responseData.choices[0].message.content) {\n      // The chat app expects the response in the 'text' field as a JSON string\n      return {\n        llm_answer: responseData.choices[0].message.content,\n        text_sources: textSources,\n        image_sources: imageSources\n      };\n    } else {\n      console.error(\"LLM response format incorrect or content missing:\", responseData);\n      return {\n        text: JSON.stringify({ \n          error: \"LLM response format incorrect or content missing.\",\n          llm_answer: \"LLM response format incorrect or content missing.\",\n          text_sources: textSources,\n          image_sources: imageSources\n        })\n      };\n    }\n  } catch (error) {\n    console.error(\"Error calling LLM API:\", error);\n    return {\n      text: JSON.stringify({ \n        error: `Error during LLM API call: ${error.message}`,\n        llm_answer: `Error during LLM API call: ${error.message}`,\n        text_sources: textSources,\n        image_sources: imageSources\n      })\n    };\n  }\n}\n\nreturn searchContextAndGenerateMultimodalResponse();",
+          "customFunctionUpdateState": "",
+          "undefined": ""
+        },
+        "outputAnchors": [
+          {
+            "id": "customFunctionAgentflow_0-output-customFunctionAgentflow",
+            "label": "Custom Function",
+            "name": "customFunctionAgentflow"
+          }
+        ],
+        "outputs": {},
+        "selected": false
+      },
+      "type": "agentFlow",
+      "width": 279,
+      "height": 66,
+      "selected": false,
+      "dragging": false,
+      "positionAbsolute": {
+        "x": 436.73495420159816,
+        "y": 76.0775708117976
+      }
+    },
+    {
+      "id": "customFunctionAgentflow_1",
+      "position": {
+        "x": 52.93822800928419,
+        "y": -0.6044186559915232
+      },
+      "data": {
+        "id": "customFunctionAgentflow_1",
+        "label": "Get Text Embedding Vector",
+        "version": 1,
+        "name": "customFunctionAgentflow",
+        "type": "CustomFunction",
+        "color": "#E4B7FF",
+        "baseClasses": [
+          "CustomFunction"
+        ],
+        "category": "Agent Flows",
+        "description": "Execute custom function",
+        "inputParams": [
+          {
+            "label": "Input Variables",
+            "name": "customFunctionInputVariables",
+            "description": "Input variables can be used in the function with prefix $. For example: $foo",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Variable Name",
+                "name": "variableName",
+                "type": "string"
+              },
+              {
+                "label": "Variable Value",
+                "name": "variableValue",
+                "type": "string",
+                "acceptVariable": true
+              }
+            ],
+            "id": "customFunctionAgentflow_1-input-customFunctionInputVariables-array",
+            "display": true
+          },
+          {
+            "label": "Javascript Function",
+            "name": "customFunctionJavascriptFunction",
+            "type": "code",
+            "codeExample": "/*\n* You can use any libraries imported in Flowise\n* You can use properties specified in Input Schema as variables. Ex: Property = userid, Variable = $userid\n* You can get default flow config: $flow.sessionId, $flow.chatId, $flow.chatflowId, $flow.input, $flow.state\n* You can get custom variables: $vars.<variable-name>\n* Must return a string value at the end of function\n*/\n\nconst fetch = require('node-fetch');\nconst url = 'https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true';\nconst options = {\n    method: 'GET',\n    headers: {\n        'Content-Type': 'application/json'\n    }\n};\ntry {\n    const response = await fetch(url, options);\n    const text = await response.text();\n    return text;\n} catch (error) {\n    console.error(error);\n    return '';\n}",
+            "description": "The function to execute. Must return a string or an object that can be converted to a string.",
+            "id": "customFunctionAgentflow_1-input-customFunctionJavascriptFunction-code",
+            "display": true
+          },
+          {
+            "label": "Update Flow State",
+            "name": "customFunctionUpdateState",
+            "description": "Update runtime state during the execution of the workflow",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Key",
+                "name": "key",
+                "type": "asyncOptions",
+                "loadMethod": "listRuntimeStateKeys",
+                "freeSolo": true
+              },
+              {
+                "label": "Value",
+                "name": "value",
+                "type": "string",
+                "acceptVariable": true,
+                "acceptNodeOutputAsVariable": true
+              }
+            ],
+            "id": "customFunctionAgentflow_1-input-customFunctionUpdateState-array",
+            "display": true
+          }
+        ],
+        "inputAnchors": [],
+        "inputs": {
+          "customFunctionInputVariables": [
+            {
+              "variableName": "question",
+              "variableValue": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"llmAgentflow_1\" data-label=\"llmAgentflow_1\">{{ llmAgentflow_1 }}</span> </p>"
+            }
+          ],
+          "customFunctionJavascriptFunction": "const fetch = require('node-fetch');\n\nasync function getEmbeddingVector() {\n  const url = \"http://vllm_text_embedder:8000/v1/embeddings\";\n\n  const modelName = \"vllm-text-embedding-model\";\n\n  // $question is the input variable provided by Flowise from \"Input Variables\"\n  const payload = {\n    input: $question, \n    model: modelName\n  };\n\n  try {\n    const response = await fetch(url, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json'\n      },\n      body: JSON.stringify(payload)\n    });\n\n    if (!response.ok) {\n      const errorBody = await response.text();\n      console.error(`HTTP error when calling embedding service! Status: ${response.status}, Body: ${errorBody}`);\n\n      return JSON.stringify({ error: `Error fetching embedding: ${response.status} - ${errorBody}` });\n    }\n\n    const responseData = await response.json();\n\n    // The OpenAI-compatible API returns embeddings in a structure like:\n    // { \"object\": \"list\", \"data\": [ { \"object\": \"embedding\", \"index\": 0, \"embedding\": [...] } ], ... }\n    if (responseData && responseData.data && responseData.data.length > 0 && responseData.data[0].embedding) {\n      // Successfully retrieved the embedding vector.\n      // Custom functions must return a string. We'll stringify the array.\n      return JSON.stringify(responseData.data[0].embedding);\n    } else {\n      console.error(\"Embedding data not found in the expected format in API response:\", responseData);\n      return JSON.stringify({ error: \"Error: Embedding format incorrect or embedding not found in API response.\" });\n    }\n\n  } catch (error) {\n    console.error(\"Error within custom JavaScript function (getEmbeddingVector):\", error);\n    \n    return JSON.stringify({ error: `Error in custom function execution: ${error.message}` });\n  }\n}\n\n// Flowise will execute this. The return value (or the resolved value of the Promise) \n// from getEmbeddingVector() will be the output of this custom function node.\n// Ensure the final returned value is a string.\nreturn getEmbeddingVector();",
+          "customFunctionUpdateState": [
+            {
+              "key": "",
+              "value": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"output\" data-label=\"output\">{{ output }}</span> </p>"
+            }
+          ]
+        },
+        "outputAnchors": [
+          {
+            "id": "customFunctionAgentflow_1-output-customFunctionAgentflow",
+            "label": "Custom Function",
+            "name": "customFunctionAgentflow"
+          }
+        ],
+        "outputs": {},
+        "selected": false
+      },
+      "type": "agentFlow",
+      "width": 250,
+      "height": 66,
+      "selected": false,
+      "dragging": false,
+      "positionAbsolute": {
+        "x": 52.93822800928419,
+        "y": -0.6044186559915232
+      }
+    },
+    {
+      "id": "customFunctionAgentflow_2",
+      "position": {
+        "x": 93.31499054201473,
+        "y": 124.79237667428293
+      },
+      "data": {
+        "id": "customFunctionAgentflow_2",
+        "label": "Get Image Embedding Vector",
+        "version": 1,
+        "name": "customFunctionAgentflow",
+        "type": "CustomFunction",
+        "color": "#E4B7FF",
+        "baseClasses": [
+          "CustomFunction"
+        ],
+        "category": "Agent Flows",
+        "description": "Execute custom function",
+        "inputParams": [
+          {
+            "label": "Input Variables",
+            "name": "customFunctionInputVariables",
+            "description": "Input variables can be used in the function with prefix $. For example: $foo",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Variable Name",
+                "name": "variableName",
+                "type": "string"
+              },
+              {
+                "label": "Variable Value",
+                "name": "variableValue",
+                "type": "string",
+                "acceptVariable": true
+              }
+            ],
+            "id": "customFunctionAgentflow_2-input-customFunctionInputVariables-array",
+            "display": true
+          },
+          {
+            "label": "Javascript Function",
+            "name": "customFunctionJavascriptFunction",
+            "type": "code",
+            "codeExample": "/*\n* You can use any libraries imported in Flowise\n* You can use properties specified in Input Schema as variables. Ex: Property = userid, Variable = $userid\n* You can get default flow config: $flow.sessionId, $flow.chatId, $flow.chatflowId, $flow.input, $flow.state\n* You can get custom variables: $vars.<variable-name>\n* Must return a string value at the end of function\n*/\n\nconst fetch = require('node-fetch');\nconst url = 'https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true';\nconst options = {\n    method: 'GET',\n    headers: {\n        'Content-Type': 'application/json'\n    }\n};\ntry {\n    const response = await fetch(url, options);\n    const text = await response.text();\n    return text;\n} catch (error) {\n    console.error(error);\n    return '';\n}",
+            "description": "The function to execute. Must return a string or an object that can be converted to a string.",
+            "id": "customFunctionAgentflow_2-input-customFunctionJavascriptFunction-code",
+            "display": true
+          },
+          {
+            "label": "Update Flow State",
+            "name": "customFunctionUpdateState",
+            "description": "Update runtime state during the execution of the workflow",
+            "type": "array",
+            "optional": true,
+            "acceptVariable": true,
+            "array": [
+              {
+                "label": "Key",
+                "name": "key",
+                "type": "asyncOptions",
+                "loadMethod": "listRuntimeStateKeys",
+                "freeSolo": true
+              },
+              {
+                "label": "Value",
+                "name": "value",
+                "type": "string",
+                "acceptVariable": true,
+                "acceptNodeOutputAsVariable": true
+              }
+            ],
+            "id": "customFunctionAgentflow_2-input-customFunctionUpdateState-array",
+            "display": true
+          }
+        ],
+        "inputAnchors": [],
+        "inputs": {
+          "customFunctionInputVariables": [
+            {
+              "variableName": "userQuestion",
+              "variableValue": "<p><span class=\"variable\" data-type=\"mention\" data-id=\"llmAgentflow_1\" data-label=\"llmAgentflow_1\">{{ llmAgentflow_1 }}</span> </p>"
+            }
+          ],
+          "customFunctionJavascriptFunction": "const fetch = require('node-fetch');\n\nasync function generateImageEmbedding() {\n  // --- Input from Flowise ---\n  const inputText = $userQuestion;\n\n  // --- Hardcoded vLLM Image Embedder Configuration ---\n  const embedderHost = 'vllm_image_embedder'; // Service name from docker-compose.yaml\n  const embedderPort = 8000; // Internal port vLLM listens on\n  const embedderModelName = 'vllm-image-embedding-model';\n\n  if (!inputText) {\n    console.error(\"Input text ($userQuestion) is missing for image embedding generation.\");\n    return JSON.stringify({ error: \"Missing input text for image embedding.\" });\n  }\n\n  const apiUrl = `http://${embedderHost}:${embedderPort}/v1/embeddings`;\n  const payload = {\n    input: inputText,\n    model: embedderModelName\n  };\n\n  console.log(\"Sending payload to vLLM Image Embedder:\", JSON.stringify(payload));\n\n  try {\n    const response = await fetch(apiUrl, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(payload)\n    });\n\n    if (!response.ok) {\n      const errorBody = await response.text();\n      console.error(`vLLM Image Embedder API error! Status: ${response.status}, Body: ${errorBody}`);\n      return JSON.stringify({ error: `Image Embedder API request failed: ${response.status} - ${errorBody}` });\n    }\n\n    const responseData = await response.json();\n    console.log(\"vLLM Image Embedder Response Data received.\");\n\n    // Standard OpenAI embedding response format\n    if (responseData && responseData.data && responseData.data.length > 0 && responseData.data[0].embedding) {\n      // Custom functions must return a string. Stringify the array.\n      return JSON.stringify(responseData.data[0].embedding);\n    } else {\n      console.error(\"Image embedding data not found in the expected format:\", responseData);\n      return JSON.stringify({ error: \"Image embedding format incorrect or embedding not found.\" });\n    }\n\n  } catch (error) {\n    console.error(\"Error calling vLLM Image Embedder API:\", error);\n    return JSON.stringify({ error: `Error during Image Embedder API call: ${error.message}` });\n  }\n}\n\nreturn generateImageEmbedding();",
+          "customFunctionUpdateState": ""
+        },
+        "outputAnchors": [
+          {
+            "id": "customFunctionAgentflow_2-output-customFunctionAgentflow",
+            "label": "Custom Function",
+            "name": "customFunctionAgentflow"
+          }
+        ],
+        "outputs": {},
+        "selected": false
+      },
+      "type": "agentFlow",
+      "width": 262,
+      "height": 66,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 93.31499054201473,
+        "y": 124.79237667428293
+      },
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "startAgentflow_0",
+      "sourceHandle": "startAgentflow_0-output-startAgentflow",
+      "target": "llmAgentflow_1",
+      "targetHandle": "llmAgentflow_1",
+      "data": {
+        "sourceColor": "#7EE787",
+        "targetColor": "#64B5F6",
+        "isHumanInput": false
+      },
+      "type": "agentFlow",
+      "id": "startAgentflow_0-startAgentflow_0-output-startAgentflow-llmAgentflow_1-llmAgentflow_1"
+    },
+    {
+      "source": "llmAgentflow_1",
+      "sourceHandle": "llmAgentflow_1-output-llmAgentflow",
+      "target": "customFunctionAgentflow_1",
+      "targetHandle": "customFunctionAgentflow_1",
+      "data": {
+        "sourceColor": "#64B5F6",
+        "targetColor": "#E4B7FF",
+        "isHumanInput": false
+      },
+      "type": "agentFlow",
+      "id": "llmAgentflow_1-llmAgentflow_1-output-llmAgentflow-customFunctionAgentflow_1-customFunctionAgentflow_1"
+    },
+    {
+      "source": "customFunctionAgentflow_1",
+      "sourceHandle": "customFunctionAgentflow_1-output-customFunctionAgentflow",
+      "target": "customFunctionAgentflow_2",
+      "targetHandle": "customFunctionAgentflow_2",
+      "data": {
+        "sourceColor": "#E4B7FF",
+        "targetColor": "#E4B7FF",
+        "isHumanInput": false
+      },
+      "type": "agentFlow",
+      "id": "customFunctionAgentflow_1-customFunctionAgentflow_1-output-customFunctionAgentflow-customFunctionAgentflow_2-customFunctionAgentflow_2"
+    },
+    {
+      "source": "customFunctionAgentflow_2",
+      "sourceHandle": "customFunctionAgentflow_2-output-customFunctionAgentflow",
+      "target": "customFunctionAgentflow_0",
+      "targetHandle": "customFunctionAgentflow_0",
+      "data": {
+        "sourceColor": "#E4B7FF",
+        "targetColor": "#E4B7FF",
+        "isHumanInput": false
+      },
+      "type": "agentFlow",
+      "id": "customFunctionAgentflow_2-customFunctionAgentflow_2-output-customFunctionAgentflow-customFunctionAgentflow_0-customFunctionAgentflow_0"
+    }
+  ]
+}
