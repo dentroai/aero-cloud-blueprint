@@ -92,9 +92,9 @@ $$;
 -- Or for older pgvector versions or different preferences:
 -- CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding vector_l2_ops) WITH (lists = 100);
 
-GRANT ALL PRIVILEGES ON TABLE documents TO ${POSTGRES_USER};
-GRANT ALL PRIVILEGES ON FUNCTION match_documents(vector, integer, jsonb) TO ${POSTGRES_USER};
-GRANT ALL PRIVILEGES ON FUNCTION match_images_by_embedding(vector, integer, jsonb) TO ${POSTGRES_USER};
+GRANT ALL PRIVILEGES ON TABLE documents TO rag_user;
+GRANT ALL PRIVILEGES ON FUNCTION match_documents(vector, integer, jsonb) TO rag_user;
+GRANT ALL PRIVILEGES ON FUNCTION match_images_by_embedding(vector, integer, jsonb) TO rag_user;
 
 -- Note: ${POSTGRES_USER} should be the user Flowise connects with.
 -- If your init scripts don't support environment variable substitution directly like this,
