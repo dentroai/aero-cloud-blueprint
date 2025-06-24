@@ -172,10 +172,10 @@ services:
     expose:
       - "3000"
     volumes:
-      - aero_chat_data:/app/data
+      - aero_chat_data:/app/prisma
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/dev.db
+      - DATABASE_URL=file:./dev.db
       - NEXT_PUBLIC_MSAL_CLIENT_ID=${NEXT_PUBLIC_MSAL_CLIENT_ID}
       - NEXT_PUBLIC_MSAL_TENANT_ID=${NEXT_PUBLIC_MSAL_TENANT_ID}
       - NEXT_PUBLIC_BASE_URL=https://aero-chat.dentro-innovation.com
